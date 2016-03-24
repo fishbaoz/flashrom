@@ -551,89 +551,92 @@ $(info $(shell ./util/getrevision.sh -c 2>/dev/null || echo "Files don't seem to
 CONFIG_INTERNAL ?= yes
 
 # Always enable serprog for now.
-CONFIG_SERPROG ?= yes
+CONFIG_SERPROG ?= no
 
 # RayeR SPIPGM hardware support
-CONFIG_RAYER_SPI ?= yes
+CONFIG_RAYER_SPI ?= no
 
 # PonyProg2000 SPI hardware support
-CONFIG_PONY_SPI ?= yes
+CONFIG_PONY_SPI ?= no
 
 # Always enable 3Com NICs for now.
-CONFIG_NIC3COM ?= yes
+CONFIG_NIC3COM ?= no
 
 # Enable NVIDIA graphics cards. Note: write and erase do not work properly.
-CONFIG_GFXNVIDIA ?= yes
+CONFIG_GFXNVIDIA ?= no
 
 # Always enable SiI SATA controllers for now.
-CONFIG_SATASII ?= yes
+CONFIG_SATASII ?= no
 
 # Highpoint (HPT) ATA/RAID controller support.
 # IMPORTANT: This code is not yet working!
 CONFIG_ATAHPT ?= no
 
 # VIA VT6421A LPC memory support
-CONFIG_ATAVIA ?= yes
+CONFIG_ATAVIA ?= no
 
 # Promise ATA controller support.
 CONFIG_ATAPROMISE ?= no
 
 # Always enable FT2232 SPI dongles for now.
-CONFIG_FT2232_SPI ?= yes
+CONFIG_FT2232_SPI ?= no
 
 # Always enable Altera USB-Blaster dongles for now.
-CONFIG_USBBLASTER_SPI ?= yes
+CONFIG_USBBLASTER_SPI ?= no
 
 # MSTAR DDC support needs more tests/reviews/cleanups.
 CONFIG_MSTARDDC_SPI ?= no
 
 # Always enable PICkit2 SPI dongles for now.
-CONFIG_PICKIT2_SPI ?= yes
+CONFIG_PICKIT2_SPI ?= no
 
 # Always enable dummy tracing for now.
 CONFIG_DUMMY ?= yes
 
 # Always enable Dr. Kaiser for now.
-CONFIG_DRKAISER ?= yes
+CONFIG_DRKAISER ?= no
 
 # Always enable Realtek NICs for now.
-CONFIG_NICREALTEK ?= yes
+CONFIG_NICREALTEK ?= no
 
 # Disable National Semiconductor NICs until support is complete and tested.
 CONFIG_NICNATSEMI ?= no
 
 # Always enable Intel NICs for now.
-CONFIG_NICINTEL ?= yes
+CONFIG_NICINTEL ?= no
 
 # Always enable SPI on Intel NICs for now.
-CONFIG_NICINTEL_SPI ?= yes
+CONFIG_NICINTEL_SPI ?= no
 
 # Always enable EEPROM on Intel NICs for now.
-CONFIG_NICINTEL_EEPROM ?= yes
+CONFIG_NICINTEL_EEPROM ?= no
 
 # Always enable SPI on OGP cards for now.
-CONFIG_OGP_SPI ?= yes
+CONFIG_OGP_SPI ?= no
 
 # Always enable Bus Pirate SPI for now.
-CONFIG_BUSPIRATE_SPI ?= yes
+CONFIG_BUSPIRATE_SPI ?= no
 
 # Always enable Dediprog SF100 for now.
-CONFIG_DEDIPROG ?= yes
+CONFIG_DEDIPROG ?= no
 
 # Always enable Marvell SATA controllers for now.
-CONFIG_SATAMV ?= yes
+CONFIG_SATAMV ?= no
 
 # Enable Linux spidev interface by default. We disable it on non-Linux targets.
 CONFIG_LINUX_SPI ?= yes
 
 # Always enable ITE IT8212F PATA controllers for now.
-CONFIG_IT8212 ?= yes
+CONFIG_IT8212 ?= no
 
 # Winchiphead CH341A
-CONFIG_CH341A_SPI ?= yes
+CONFIG_CH341A_SPI ?= no
 
 # Disable wiki printing by default. It is only useful if you have wiki access.
 CONFIG_PRINT_WIKI ?= no
+
+# OTP
+CONFIG_ONE_TIME_PROGRAM ?= 0
 
 # Disable all features if CONFIG_NOTHING=yes is given unless CONFIG_EVERYTHING was also set
 ifeq ($(CONFIG_NOTHING), yes)
@@ -725,6 +728,7 @@ CONFIG_INTERNAL_DMI ?= yes
 
 FEATURE_CFLAGS += -D'CONFIG_DEFAULT_PROGRAMMER=$(CONFIG_DEFAULT_PROGRAMMER)'
 FEATURE_CFLAGS += -D'CONFIG_DEFAULT_PROGRAMMER_ARGS="$(CONFIG_DEFAULT_PROGRAMMER_ARGS)"'
+FEATURE_CFLAGS += -D'CONFIG_ONE_TIME_PROGRAM=$(CONFIG_ONE_TIME_PROGRAM)'
 
 ifeq ($(CONFIG_INTERNAL), yes)
 FEATURE_CFLAGS += -D'CONFIG_INTERNAL=1'
@@ -1006,13 +1010,17 @@ FEATURE_LIBS += $(call debug_shell,grep -q "NEEDLIBZ := yes" .libdeps && printf 
 LIBFLASHROM_OBJS = $(CHIP_OBJS) $(PROGRAMMER_OBJS) $(LIB_OBJS)
 OBJS = $(CLI_OBJS) $(LIBFLASHROM_OBJS)
 
-all: hwlibs features $(PROGRAM)$(EXEC_SUFFIX) $(PROGRAM).8
+ifeq ($(CONFIG_ONE_TIME_PROGRAM), 1)
+OTP=-otp
+endif
+
+all: hwlibs features $(PROGRAM)$(OTP)$(EXEC_SUFFIX) $(PROGRAM).8
 ifeq ($(ARCH), x86)
 	@+$(MAKE) -C util/ich_descriptors_tool/ TARGET_OS=$(TARGET_OS) EXEC_SUFFIX=$(EXEC_SUFFIX)
 endif
 
-$(PROGRAM)$(EXEC_SUFFIX): $(OBJS)
-	$(CC) $(LDFLAGS) -o $(PROGRAM)$(EXEC_SUFFIX) $(OBJS) $(LIBS) $(PCILIBS) $(FEATURE_LIBS) $(USBLIBS) $(USB1LIBS)
+$(PROGRAM)$(OTP)$(EXEC_SUFFIX): $(OBJS)
+	$(CC) $(LDFLAGS) -o $(PROGRAM)$(OTP)$(EXEC_SUFFIX) $(OBJS) $(LIBS) $(PCILIBS) $(FEATURE_LIBS) $(USBLIBS) $(USB1LIBS)
 
 libflashrom.a: $(LIBFLASHROM_OBJS)
 	$(AR) rcs $@ $^
@@ -1030,14 +1038,14 @@ TAROPTIONS = $(shell LC_ALL=C tar --version|grep -q GNU && echo "--owner=root --
 # This includes all frontends and libflashrom.
 # We don't use EXEC_SUFFIX here because we want to clean everything.
 clean:
-	rm -f $(PROGRAM) $(PROGRAM).exe libflashrom.a *.o *.d $(PROGRAM).8 $(PROGRAM).8.html $(BUILD_DETAILS_FILE)
+	rm -f $(PROGRAM)$(OTP) $(PROGRAM).exe libflashrom.a *.o *.d $(PROGRAM).8 $(PROGRAM).8.html $(BUILD_DETAILS_FILE)
 	@+$(MAKE) -C util/ich_descriptors_tool/ clean
 
 distclean: clean
 	rm -f .features .libdeps
 
-strip: $(PROGRAM)$(EXEC_SUFFIX)
-	$(STRIP) $(STRIP_ARGS) $(PROGRAM)$(EXEC_SUFFIX)
+strip: $(PROGRAM)$(OTP)$(EXEC_SUFFIX)
+	$(STRIP) $(STRIP_ARGS) $(PROGRAM)$(OTP)$(EXEC_SUFFIX)
 
 # to define test programs we use verbatim variables, which get exported
 # to environment variables and are referenced with $$<varname> later

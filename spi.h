@@ -152,6 +152,16 @@
 #define JEDEC_AAI_WORD_PROGRAM_CONT_OUTSIZE	0x03
 #define JEDEC_AAI_WORD_PROGRAM_INSIZE		0x00
 
+/* Enter OTP mode */
+#define JEDEC_ENSO	0xB1
+#define JEDEC_ENSO_OUTSIZE	0x01
+#define JEDEC_ENSO_INSIZE	0x01
+
+/* Exit OTP mode */
+#define JEDEC_EXSO	0xC1
+#define JEDEC_EXSO_OUTSIZE	0x01
+#define JEDEC_EXSO_INSIZE	0x01
+
 /* Error codes */
 #define SPI_GENERIC_ERROR	-1
 #define SPI_INVALID_OPCODE	-2

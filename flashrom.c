@@ -1369,6 +1369,9 @@ int read_flash_to_file(struct flashctx *flash, const char *filename)
 	unsigned char *buf = calloc(size, sizeof(char));
 	int ret = 0;
 
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	size = 64;
+	#endif
 	msg_cinfo("Reading flash... ");
 	if (!buf) {
 		msg_gerr("Memory allocation failed!\n");
@@ -1387,6 +1390,51 @@ int read_flash_to_file(struct flashctx *flash, const char *filename)
 	}
 
 	ret = write_buf_to_file(buf, size, filename);
+out_free:
+	free(buf);
+	msg_cinfo("%s.\n", ret ? "FAILED" : "done");
+	return ret;
+}
+
+int write_file_to_flash(struct flashctx *flash, const char *filename)
+{
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	unsigned long size = 64;
+	#else
+	unsigned long size = flash->chip->total_size * 1024;
+	int erasefunction=0, eraseblock=0;
+	#endif
+	unsigned char *buf = calloc(size, sizeof(char));
+	int ret = 0;
+
+	if (!buf) {
+		msg_gerr("Memory allocation failed!\n");
+		msg_cinfo("FAILED.\n");
+		return 1;
+	}
+	read_buf_from_file(buf, size, filename);
+	if (!flash->chip->write) {
+		msg_cerr("No read function available for this flash chip.\n");
+		ret = 1;
+		goto out_free;
+	}
+#if (CONFIG_ONE_TIME_PROGRAM == 0)
+	for (erasefunction=0; erasefunction<NUM_ERASEFUNCTIONS; erasefunction++)
+		for (eraseblock=0; eraseblock<NUM_ERASEREGIONS; eraseblock++) {
+			if (flash->chip->block_erasers[erasefunction].eraseblocks[eraseblock].count == 1)
+				if (flash->chip->block_erasers[erasefunction].block_erase(flash, 0, size)) {
+					msg_cerr("Erase operation failed!\n");
+					ret = 1;
+					goto out_free;
+				}
+	}
+#endif
+	if (flash->chip->write(flash, buf, 0, size)) {
+		msg_cerr("Write operation failed!\n");
+		ret = 1;
+		goto out_free;
+	}
+
 out_free:
 	free(buf);
 	msg_cinfo("%s.\n", ret ? "FAILED" : "done");
@@ -2003,6 +2051,10 @@ int doit(struct flashctx *flash, int force, const char *filename, int read_it,
 
 	if (read_it) {
 		return read_flash_to_file(flash, filename);
+	}
+
+	if (write_it) {
+		return write_file_to_flash(flash, filename);
 	}
 
 	oldcontents = malloc(size);

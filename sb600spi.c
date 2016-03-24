@@ -522,7 +522,7 @@ static int handle_imc(struct pci_dev *dev)
 	if (amd_imc_force)
 		msg_pinfo("Continuing with write support because the user forced us to!\n");
 
-	return amd_imc_shutdown(dev);
+	return 0; //amd_imc_shutdown(dev);
 }
 
 int sb600_probe_spi(struct pci_dev *dev)

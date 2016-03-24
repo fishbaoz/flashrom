@@ -115,6 +115,33 @@ int spi_write_disable(struct flashctx *flash)
 	return spi_send_command(flash, sizeof(cmd), 0, cmd, NULL);
 }
 
+int spi_enter_otp(struct flashctx *flash)
+{
+	static const unsigned char cmd[JEDEC_ENSO_OUTSIZE] = { JEDEC_ENSO };
+	int result;
+
+	/* Send WREN (Write Enable) */
+	result = spi_send_command(flash, sizeof(cmd), 0, cmd, NULL);
+
+	if (result)
+		msg_cerr("%s failed\n", __func__);
+
+	return result;
+}
+
+int spi_exit_otp(struct flashctx *flash)
+{
+	static const unsigned char cmd[JEDEC_EXSO_OUTSIZE] = { JEDEC_EXSO };
+	int result;
+
+	/* Send WREN (Write Enable) */
+	result = spi_send_command(flash, sizeof(cmd), 0, cmd, NULL);
+
+	if (result)
+		msg_cerr("%s failed\n", __func__);
+
+	return result;
+}
 static int probe_spi_rdid_generic(struct flashctx *flash, int bytes)
 {
 	const struct flashchip *chip = flash->chip;
@@ -958,6 +985,9 @@ int spi_read_chunked(struct flashctx *flash, uint8_t *buf, unsigned int start,
 	 * (start + len - 1) / page_size. Since we want to include that last
 	 * page as well, the loop condition uses <=.
 	 */
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	spi_enter_otp(flash);
+	#endif
 	for (i = start / page_size; i <= (start + len - 1) / page_size; i++) {
 		/* Byte position of the first byte in the range in this page. */
 		/* starthere is an offset to the base address of the chip. */
@@ -973,6 +1003,9 @@ int spi_read_chunked(struct flashctx *flash, uint8_t *buf, unsigned int start,
 		if (rc)
 			break;
 	}
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	spi_exit_otp(flash);
+	#endif
 
 	return rc;
 }
@@ -1003,6 +1036,9 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 	 * (start + len - 1) / page_size. Since we want to include that last
 	 * page as well, the loop condition uses <=.
 	 */
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	spi_enter_otp(flash);
+	#endif
 	for (i = start / page_size; i <= (start + len - 1) / page_size; i++) {
 		/* Byte position of the first byte in the range in this page. */
 		/* starthere is an offset to the base address of the chip. */
@@ -1020,6 +1056,9 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 		if (rc)
 			break;
 	}
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	spi_exit_otp(flash);
+	#endif
 
 	return rc;
 }

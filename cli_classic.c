@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 #endif
 	int read_it = 0, write_it = 0, erase_it = 0, verify_it = 0;
 	int dont_verify_it = 0, list_supported = 0, operation_specified = 0;
-	enum programmer prog = PROGRAMMER_INVALID;
+	enum programmer prog = PROGRAMMER_INTERNAL;
 	int ret = 0;
 
 	static const char optstring[] = "r:Rw:v:nVEfc:l:i:p:Lzho:";
