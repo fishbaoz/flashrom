@@ -77,6 +77,14 @@ override PKG_CONFIG += --static
 override LDFLAGS += -static
 endif
 
+ifeq ($(CC), i586-pc-msdosdjgpp-gcc)
+CFLAGS += -I./libpci/include
+CFLAGS += -I./libgetopt
+
+LDFLAGS += -L./libpci/lib
+LDFLAGS += -L./libgetopt
+endif
+
 # Set LC_ALL=C to minimize influences of the locale.
 # However, this won't work for the majority of relevant commands because they use the $(shell) function and
 # GNU make does not relay variables exported within the makefile to their evironment.
@@ -1038,7 +1046,7 @@ TAROPTIONS = $(shell LC_ALL=C tar --version|grep -q GNU && echo "--owner=root --
 # This includes all frontends and libflashrom.
 # We don't use EXEC_SUFFIX here because we want to clean everything.
 clean:
-	rm -f $(PROGRAM)$(OTP) $(PROGRAM).exe libflashrom.a *.o *.d $(PROGRAM).8 $(PROGRAM).8.html $(BUILD_DETAILS_FILE)
+	rm -f $(PROGRAM) $(PROGRAM)-otp $(PROGRAM).exe libflashrom.a *.o *.d $(PROGRAM).8 $(PROGRAM).8.html $(BUILD_DETAILS_FILE)
 	@+$(MAKE) -C util/ich_descriptors_tool/ clean
 
 distclean: clean

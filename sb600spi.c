@@ -482,7 +482,7 @@ static int handle_imc(struct pci_dev *dev)
 	if (amd_gen == CHIPSET_SB6XX)
 		return 0;
 
-	bool amd_imc_force = false;
+	bool amd_imc_force = true;
 	char *arg = extract_programmer_param("amd_imc_force");
 	if (arg && !strcmp(arg, "yes")) {
 		amd_imc_force = true;

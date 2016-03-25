@@ -1421,13 +1421,17 @@ int write_file_to_flash(struct flashctx *flash, const char *filename)
 #if (CONFIG_ONE_TIME_PROGRAM == 0)
 	for (erasefunction=0; erasefunction<NUM_ERASEFUNCTIONS; erasefunction++)
 		for (eraseblock=0; eraseblock<NUM_ERASEREGIONS; eraseblock++) {
-			if (flash->chip->block_erasers[erasefunction].eraseblocks[eraseblock].count == 1)
+			if (flash->chip->block_erasers[erasefunction].eraseblocks[eraseblock].count == 1) {
 				if (flash->chip->block_erasers[erasefunction].block_erase(flash, 0, size)) {
 					msg_cerr("Erase operation failed!\n");
 					ret = 1;
 					goto out_free;
 				}
+				msg_ginfo("Erase is OK\n");
+				goto erase_is_ok;
+			}
 	}
+erase_is_ok:
 #endif
 	if (flash->chip->write(flash, buf, 0, size)) {
 		msg_cerr("Write operation failed!\n");
