@@ -93,6 +93,29 @@ static int spi_res(struct flashctx *flash, unsigned char *readarr, int bytes)
 	return 0;
 }
 
+int spi_rduniqid(struct flashctx *flash, unsigned char *readarr)
+{
+	unsigned char cmd[JEDEC_RDUNIQID_OUTSIZE] = { JEDEC_RDUNIQID, 0, 0, 0, 0 };
+	uint32_t readaddr;
+	int ret;
+
+	ret = spi_send_command(flash, sizeof(cmd), JEDEC_RDUNIQID_INSIZE, cmd,
+			       readarr);
+	if (ret == SPI_INVALID_ADDRESS) {
+		/* Find the lowest even address allowed for reads. */
+		readaddr = (spi_get_valid_read_addr(flash) + 1) & ~1;
+		cmd[1] = (readaddr >> 16) & 0xff,
+		cmd[2] = (readaddr >> 8) & 0xff,
+		cmd[3] = (readaddr >> 0) & 0xff,
+		ret = spi_send_command(flash, sizeof(cmd), JEDEC_RDUNIQID_INSIZE,
+				       cmd, readarr);
+	}
+	if (ret)
+		return ret;
+	msg_cspew("Read Unique ID returned 0x%02x 0x%02x. ", readarr[0], readarr[1]);
+	return 0;
+}
+
 int spi_write_enable(struct flashctx *flash)
 {
 	static const unsigned char cmd[JEDEC_WREN_OUTSIZE] = { JEDEC_WREN };

@@ -44,6 +44,7 @@ int spi_write_enable(struct flashctx *flash);
 int spi_write_disable(struct flashctx *flash);
 int spi_enter_otp(struct flashctx *flash);
 int spi_exit_otp(struct flashctx *flash);
+int spi_rduniqid(struct flashctx *flash, uint8_t *bytes);
 int spi_block_erase_20(struct flashctx *flash, unsigned int addr, unsigned int blocklen);
 int spi_block_erase_50(struct flashctx *flash, unsigned int addr, unsigned int blocklen);
 int spi_block_erase_52(struct flashctx *flash, unsigned int addr, unsigned int blocklen);

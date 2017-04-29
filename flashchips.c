@@ -7816,7 +7816,7 @@ const struct flashchip flashchips[] = {
 		.read		= spi_chip_read,
 		.voltage	= {2700, 3600},
 	},
-
+#if 0
 	{
 		.vendor		= "Macronix",
 		.name		= "MX25L6405",
@@ -7928,7 +7928,7 @@ const struct flashchip flashchips[] = {
 		.read		= spi_chip_read, /* Fast read (0x0B), dual I/O read supported */
 		.voltage	= {2700, 3600},
 	},
-
+#endif
 	{
 		.vendor		= "Macronix",
 		.name		= "MX25L6436E/MX25L6445E/MX25L6465E/MX25L6473E",

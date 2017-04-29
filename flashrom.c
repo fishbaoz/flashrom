@@ -40,6 +40,7 @@
 #include "flashchips.h"
 #include "programmer.h"
 #include "hwaccess.h"
+#include "chipdrivers.h"
 
 const char flashrom_version[] = FLASHROM_VERSION;
 const char *chip_to_probe = NULL;
@@ -1245,7 +1246,13 @@ notfound:
 	if (!flash->chip)
 		return -1;
 
-
+	if (flash->chip->manufacture_id == 0xEF /* 0xC2 */) {
+		uint8_t uniq_id[8];
+		spi_rduniqid(flash, uniq_id);
+		msg_cinfo("%s: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", __func__,
+			  uniq_id[0], uniq_id[1], uniq_id[2], uniq_id[3],
+			  uniq_id[4], uniq_id[5], uniq_id[6], uniq_id[7]);
+	}
 	tmp = flashbuses_to_text(flash->chip->bustype);
 	msg_cinfo("%s %s flash chip \"%s\" (%d kB, %s) ", force ? "Assuming" : "Found",
 		  flash->chip->vendor, flash->chip->name, flash->chip->total_size, tmp);
@@ -1418,7 +1425,9 @@ int write_file_to_flash(struct flashctx *flash, const char *filename)
 		ret = 1;
 		goto out_free;
 	}
+
 #if (CONFIG_ONE_TIME_PROGRAM == 0)
+	msg_ginfo("Erasing\n");
 	for (erasefunction=0; erasefunction<NUM_ERASEFUNCTIONS; erasefunction++)
 		for (eraseblock=0; eraseblock<NUM_ERASEREGIONS; eraseblock++) {
 			if (flash->chip->block_erasers[erasefunction].eraseblocks[eraseblock].count == 1) {
@@ -1433,6 +1442,7 @@ int write_file_to_flash(struct flashctx *flash, const char *filename)
 	}
 erase_is_ok:
 #endif
+	msg_ginfo("Writing\n");
 	if (flash->chip->write(flash, buf, 0, size)) {
 		msg_cerr("Write operation failed!\n");
 		ret = 1;

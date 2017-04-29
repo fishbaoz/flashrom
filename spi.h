@@ -40,6 +40,11 @@
 #define JEDEC_REMS_OUTSIZE	0x04
 #define JEDEC_REMS_INSIZE	0x02
 
+/* Read Unique ID */
+#define JEDEC_RDUNIQID		0x4B /* TODO: Fast read for now, should be 0x4B */
+#define JEDEC_RDUNIQID_OUTSIZE	0x05
+#define JEDEC_RDUNIQID_INSIZE	0x08
+
 /* Read Serial Flash Discoverable Parameters (SFDP) */
 #define JEDEC_SFDP		0x5a
 #define JEDEC_SFDP_OUTSIZE	0x05	/* 8b op, 24b addr, 8b dummy */
