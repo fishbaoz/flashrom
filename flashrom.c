@@ -2067,9 +2067,9 @@ int doit(struct flashctx *flash, int force, const char *filename, int read_it,
 		return read_flash_to_file(flash, filename);
 	}
 
-	if (write_it) {
-		return write_file_to_flash(flash, filename);
-	}
+//	if (write_it) {
+//		return write_file_to_flash(flash, filename);
+//	}
 
 	oldcontents = malloc(size);
 	if (!oldcontents) {
