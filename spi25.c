@@ -403,10 +403,10 @@ int spi_chip_erase_60(struct flashctx *flash)
 	 */
 	/* FIXME: We assume spi_read_status_register will never fail. */
 	while (spi_read_status_register(flash) & SPI_SR_WIP) {
-		msg_ginfo(".");
+//		msg_ginfo(".");
 		programmer_delay(1000 * 1000);
 	}
-	msg_ginfo("\n");
+//	msg_ginfo("\n");
 	/* FIXME: Check the status register for errors. */
 	return 0;
 }
@@ -1068,7 +1068,8 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 	for (i = start / page_size; i <= (start + len - 1) / page_size; i++) {
 		/* Byte position of the first byte in the range in this page. */
 		/* starthere is an offset to the base address of the chip. */
-		msg_ginfo("%d%%\r", i*100*page_size/(len-1));
+		//msg_ginfo("%d%%\r", i*100*page_size/(len-1));
+		//msg_ginfo(".");
 		starthere = max(start, i * page_size);
 		/* Length of bytes in the range in this page. */
 		lenhere = min(start + len, (i + 1) * page_size) - starthere;
@@ -1083,7 +1084,7 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 		if (rc)
 			break;
 	}
-	msg_ginfo("\rOK  \n");
+	msg_ginfo(".");
 	#if (CONFIG_ONE_TIME_PROGRAM == 1)
 	spi_exit_otp(flash);
 	#endif
