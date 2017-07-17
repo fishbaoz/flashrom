@@ -106,9 +106,10 @@ static void determine_generation(struct pci_dev *dev)
 				   rev);
 			amd_gen = CHIPSET_SB89XX;
 		}
-	} else if (dev->device_id == 0x780e) {
+	} else if ((dev->device_id == 0x780e) || (dev->device_id == 0x790e)) {
 		/* The PCI ID of the LPC bridge doesn't change between Hudson-2/3/4 and Yangtze (Kabini/Temash)
 		 * although they use different SPI interfaces. */
+
 #ifdef USE_YANGTZE_HEURISTICS
 		/* This heuristic accesses the SPI interface MMIO BAR at locations beyond those supported by
 		 * Hudson in the hope of getting 0xff readback on older chipsets and non-0xff readback on
@@ -127,8 +128,11 @@ static void determine_generation(struct pci_dev *dev)
 #else
 		struct pci_dev *smbus_dev = pci_dev_find(0x1022, 0x780B);
 		if (smbus_dev == NULL) {
-			msg_pdbg("No SMBus device with ID 1022:780B found.\n");
-			return;
+			smbus_dev = pci_dev_find(0x1022, 0x790B);
+			if (smbus_dev == NULL) {
+				msg_pdbg("No SMBus device with ID 1022:780B found.\n");
+				return;
+			}
 		}
 		uint8_t rev = pci_read_byte(smbus_dev, PCI_REVISION_ID);
 		if (rev >= 0x11 && rev <= 0x15) {
@@ -137,7 +141,7 @@ static void determine_generation(struct pci_dev *dev)
 		} else if (rev == 0x16) {
 			amd_gen = CHIPSET_BOLTON;
 			msg_pdbg("Bolton detected.\n");
-		} else if ((rev >= 0x39 && rev <= 0x3A) || rev == 0x42) {
+		} else if (rev==0x4a || (rev >= 0x38 && rev <= 0x3A) || rev == 0x42) {
 			amd_gen = CHIPSET_YANGTZE;
 			msg_pdbg("Yangtze detected.\n");
 		} else {
@@ -495,7 +499,7 @@ static int handle_imc(struct pci_dev *dev)
 	if (amd_gen == CHIPSET_SB6XX)
 		return 0;
 
-	bool amd_imc_force = false;
+	bool amd_imc_force = true;
 	char *arg = extract_programmer_param("amd_imc_force");
 	if (arg && !strcmp(arg, "yes")) {
 		amd_imc_force = true;
@@ -535,7 +539,7 @@ static int handle_imc(struct pci_dev *dev)
 	if (amd_imc_force)
 		msg_pinfo("Continuing with write support because the user forced us to!\n");
 
-	return amd_imc_shutdown(dev);
+	return 0; //amd_imc_shutdown(dev);
 }
 
 int sb600_probe_spi(struct pci_dev *dev)

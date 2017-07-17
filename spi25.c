@@ -71,6 +71,29 @@ static int spi_res(struct flashctx *flash, unsigned char *readarr, int bytes)
 	return 0;
 }
 
+int spi_rduniqid(struct flashctx *flash, unsigned char *readarr)
+{
+	unsigned char cmd[JEDEC_RDUNIQID_OUTSIZE] = { JEDEC_RDUNIQID, 0, 0, 0, 0 };
+	uint32_t readaddr;
+	int ret;
+
+	ret = spi_send_command(flash, sizeof(cmd), JEDEC_RDUNIQID_INSIZE, cmd,
+			       readarr);
+	if (ret == SPI_INVALID_ADDRESS) {
+		/* Find the lowest even address allowed for reads. */
+		readaddr = (spi_get_valid_read_addr(flash) + 1) & ~1;
+		cmd[1] = (readaddr >> 16) & 0xff,
+		cmd[2] = (readaddr >> 8) & 0xff,
+		cmd[3] = (readaddr >> 0) & 0xff,
+		ret = spi_send_command(flash, sizeof(cmd), JEDEC_RDUNIQID_INSIZE,
+				       cmd, readarr);
+	}
+	if (ret)
+		return ret;
+	msg_cspew("Read Unique ID returned 0x%02x 0x%02x. ", readarr[0], readarr[1]);
+	return 0;
+}
+
 int spi_write_enable(struct flashctx *flash)
 {
 	static const unsigned char cmd[JEDEC_WREN_OUTSIZE] = { JEDEC_WREN };
@@ -93,6 +116,33 @@ int spi_write_disable(struct flashctx *flash)
 	return spi_send_command(flash, sizeof(cmd), 0, cmd, NULL);
 }
 
+int spi_enter_otp(struct flashctx *flash)
+{
+	static const unsigned char cmd[JEDEC_ENSO_OUTSIZE] = { JEDEC_ENSO };
+	int result;
+
+	/* Send WREN (Write Enable) */
+	result = spi_send_command(flash, sizeof(cmd), 0, cmd, NULL);
+
+	if (result)
+		msg_cerr("%s failed\n", __func__);
+
+	return result;
+}
+
+int spi_exit_otp(struct flashctx *flash)
+{
+	static const unsigned char cmd[JEDEC_EXSO_OUTSIZE] = { JEDEC_EXSO };
+	int result;
+
+	/* Send WREN (Write Enable) */
+	result = spi_send_command(flash, sizeof(cmd), 0, cmd, NULL);
+
+	if (result)
+		msg_cerr("%s failed\n", __func__);
+
+	return result;
+}
 static int probe_spi_rdid_generic(struct flashctx *flash, int bytes)
 {
 	const struct flashchip *chip = flash->chip;
@@ -672,6 +722,9 @@ int spi_read_chunked(struct flashctx *flash, uint8_t *buf, unsigned int start,
 	 */
 	for (i = start / area_size; i <= (start + len - 1) / area_size; i++) {
 		/* Byte position of the first byte in the range in this area. */
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	spi_enter_otp(flash);
+	#endif
 		/* starthere is an offset to the base address of the chip. */
 		starthere = max(start, i * area_size);
 		/* Length of bytes in the range in this area. */
@@ -685,6 +738,9 @@ int spi_read_chunked(struct flashctx *flash, uint8_t *buf, unsigned int start,
 		if (rc)
 			break;
 	}
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	spi_exit_otp(flash);
+	#endif
 
 	return rc;
 }
@@ -714,9 +770,14 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 	 * (start + len - 1) / page_size. Since we want to include that last
 	 * page as well, the loop condition uses <=.
 	 */
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	spi_enter_otp(flash);
+	#endif
 	for (i = start / page_size; i <= (start + len - 1) / page_size; i++) {
 		/* Byte position of the first byte in the range in this page. */
 		/* starthere is an offset to the base address of the chip. */
+		//msg_ginfo("%d%%\r", i*100*page_size/(len-1));
+		//msg_ginfo(".");
 		starthere = max(start, i * page_size);
 		/* Length of bytes in the range in this page. */
 		lenhere = min(start + len, (i + 1) * page_size) - starthere;
@@ -729,6 +790,10 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 				return rc;
 		}
 	}
+	msg_ginfo(".");
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	spi_exit_otp(flash);
+	#endif
 
 	return 0;
 }

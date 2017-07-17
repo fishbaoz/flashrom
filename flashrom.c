@@ -1317,6 +1317,13 @@ notfound:
 	fallback->entry.included	= true;
 	strcpy(fallback->entry.name, "complete flash");
 
+	if (flash->chip->manufacture_id == 0xEF /* 0xC2 */) {
+		uint8_t uniq_id[8];
+		spi_rduniqid(flash, uniq_id);
+		msg_cinfo("%s: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", __func__,
+			  uniq_id[0], uniq_id[1], uniq_id[2], uniq_id[3],
+			  uniq_id[4], uniq_id[5], uniq_id[6], uniq_id[7]);
+	}
 	tmp = flashbuses_to_text(flash->chip->bustype);
 	msg_cinfo("%s %s flash chip \"%s\" (%d kB, %s) ", force ? "Assuming" : "Found",
 		  flash->chip->vendor, flash->chip->name, flash->chip->total_size, tmp);
@@ -1441,6 +1448,9 @@ int read_flash_to_file(struct flashctx *flash, const char *filename)
 	unsigned char *buf = calloc(size, sizeof(char));
 	int ret = 0;
 
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	size = 64;
+	#endif
 	msg_cinfo("Reading flash... ");
 	if (!buf) {
 		msg_gerr("Memory allocation failed!\n");
@@ -1459,6 +1469,58 @@ int read_flash_to_file(struct flashctx *flash, const char *filename)
 	}
 
 	ret = write_buf_to_file(buf, size, filename);
+out_free:
+	free(buf);
+	msg_cinfo("%s.\n", ret ? "FAILED" : "done");
+	return ret;
+}
+
+int write_file_to_flash(struct flashctx *flash, const char *filename)
+{
+	#if (CONFIG_ONE_TIME_PROGRAM == 1)
+	unsigned long size = 64;
+	#else
+	unsigned long size = flash->chip->total_size * 1024;
+	int erasefunction=0, eraseblock=0;
+	#endif
+	unsigned char *buf = calloc(size, sizeof(char));
+	int ret = 0;
+
+	if (!buf) {
+		msg_gerr("Memory allocation failed!\n");
+		msg_cinfo("FAILED.\n");
+		return 1;
+	}
+	read_buf_from_file(buf, size, filename);
+	if (!flash->chip->write) {
+		msg_cerr("No read function available for this flash chip.\n");
+		ret = 1;
+		goto out_free;
+	}
+
+#if (CONFIG_ONE_TIME_PROGRAM == 0)
+	msg_ginfo("Erasing\n");
+	for (erasefunction=0; erasefunction<NUM_ERASEFUNCTIONS; erasefunction++)
+		for (eraseblock=0; eraseblock<NUM_ERASEREGIONS; eraseblock++) {
+			if (flash->chip->block_erasers[erasefunction].eraseblocks[eraseblock].count == 1) {
+				if (flash->chip->block_erasers[erasefunction].block_erase(flash, 0, size)) {
+					msg_cerr("Erase operation failed!\n");
+					ret = 1;
+					goto out_free;
+				}
+				msg_ginfo("Erase is OK\n");
+				goto erase_is_ok;
+			}
+	}
+erase_is_ok:
+#endif
+	msg_ginfo("Writing\n");
+	if (flash->chip->write(flash, buf, 0, size)) {
+		msg_cerr("Write operation failed!\n");
+		ret = 1;
+		goto out_free;
+	}
+
 out_free:
 	free(buf);
 	msg_cinfo("%s.\n", ret ? "FAILED" : "done");

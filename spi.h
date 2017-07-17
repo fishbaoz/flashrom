@@ -38,6 +38,11 @@
 #define JEDEC_REMS_OUTSIZE	0x04
 #define JEDEC_REMS_INSIZE	0x02
 
+/* Read Unique ID */
+#define JEDEC_RDUNIQID		0x4B /* TODO: Fast read for now, should be 0x4B */
+#define JEDEC_RDUNIQID_OUTSIZE	0x05
+#define JEDEC_RDUNIQID_INSIZE	0x08
+
 /* Read Serial Flash Discoverable Parameters (SFDP) */
 #define JEDEC_SFDP		0x5a
 #define JEDEC_SFDP_OUTSIZE	0x05	/* 8b op, 24b addr, 8b dummy */
@@ -169,6 +174,16 @@
 /* Write memory byte with 4-byte address
    From ANY mode (3-bytes or 4-bytes) it works with 4-byte address */
 #define JEDEC_BYTE_PROGRAM_4BA	0x12
+
+/* Enter OTP mode */
+#define JEDEC_ENSO	0xB1
+#define JEDEC_ENSO_OUTSIZE	0x01
+#define JEDEC_ENSO_INSIZE	0x01
+
+/* Exit OTP mode */
+#define JEDEC_EXSO	0xC1
+#define JEDEC_EXSO_OUTSIZE	0x01
+#define JEDEC_EXSO_INSIZE	0x01
 
 /* Error codes */
 #define SPI_GENERIC_ERROR	-1
