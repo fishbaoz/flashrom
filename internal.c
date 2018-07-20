@@ -206,6 +206,7 @@ int internal_init(void)
 		free(arg);
 		return 1;
 	}
+	force_laptop = 1;
 	free(arg);
 
 	arg = extract_programmer_param("mainboard");
