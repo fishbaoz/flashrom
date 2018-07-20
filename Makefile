@@ -47,7 +47,7 @@ BUILD_DETAILS_FILE ?= build_details.txt
 # values are those specified in enum programmer in programmer.h (which depend on other CONFIG_* options
 # evaluated below, namely those that enable/disable the various programmers).
 # Compilation will fail for unspecified values.
-CONFIG_DEFAULT_PROGRAMMER ?= PROGRAMMER_INVALID
+CONFIG_DEFAULT_PROGRAMMER ?= PROGRAMMER_INTERNAL
 # The following adds a default parameter for the default programmer set above (only).
 CONFIG_DEFAULT_PROGRAMMER_ARGS ?= ''
 # Example: compiling with
@@ -649,7 +649,7 @@ CONFIG_IT8212 ?= no
 CONFIG_CH341A_SPI ?= no
 
 # Digilent Development board JTAG
-CONFIG_DIGILENT_SPI ?= yes
+CONFIG_DIGILENT_SPI ?= no
 
 # Disable wiki printing by default. It is only useful if you have wiki access.
 CONFIG_PRINT_WIKI ?= no
