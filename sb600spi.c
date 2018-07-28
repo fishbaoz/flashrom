@@ -141,7 +141,7 @@ static void determine_generation(struct pci_dev *dev)
 		} else if (rev == 0x16) {
 			amd_gen = CHIPSET_BOLTON;
 			msg_pdbg("Bolton detected.\n");
-		} else if (rev==0x4a || (rev >= 0x38 && rev <= 0x3A) || rev == 0x42) {
+		} else if (rev==0x4a || (rev >= 0x38 && rev <= 0x3A) || rev == 0x42 || rev == 0x61) {
 			amd_gen = CHIPSET_YANGTZE;
 			msg_pdbg("Yangtze detected.\n");
 		} else {
