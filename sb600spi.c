@@ -130,8 +130,11 @@ static void determine_generation(struct pci_dev *dev)
 		if (smbus_dev == NULL) {
 			smbus_dev = pci_dev_find(0x1022, 0x790B);
 			if (smbus_dev == NULL) {
-				msg_pdbg("No SMBus device with ID 1022:780B found.\n");
-				return;
+				smbus_dev = pci_dev_find(0x1d94, 0x790B);
+				if (smbus_dev == NULL) {
+					msg_pdbg("No SMBus device with ID 1022:780B found.\n");
+					return;
+				}
 			}
 		}
 		uint8_t rev = pci_read_byte(smbus_dev, PCI_REVISION_ID);
@@ -141,7 +144,7 @@ static void determine_generation(struct pci_dev *dev)
 		} else if (rev == 0x16) {
 			amd_gen = CHIPSET_BOLTON;
 			msg_pdbg("Bolton detected.\n");
-		} else if (rev==0x4a || (rev >= 0x38 && rev <= 0x3A) || rev == 0x42 || rev == 0x61) {
+		} else if (rev==0x4a || (rev >= 0x38 && rev <= 0x3A) || rev == 0x42 || rev == 0x61 || rev == 0x59) {
 			amd_gen = CHIPSET_YANGTZE;
 			msg_pdbg("Yangtze detected.\n");
 		} else {
@@ -667,6 +670,8 @@ int sb600_probe_spi(struct pci_dev *dev)
 		smbus_dev = pci_dev_find(0x1022, 0x780b); /* AMD FCH */
 	if (!smbus_dev)
 		smbus_dev = pci_dev_find(0x1022, 0x790b); /* AMD FP4 */
+	if (!smbus_dev)
+		smbus_dev = pci_dev_find(0x1d94, 0x790b); /* AMD FP4 */
 	if (!smbus_dev) {
 		msg_perr("ERROR: SMBus device not found. Not enabling SPI.\n");
 		return ERROR_NONFATAL;
