@@ -676,7 +676,7 @@ static int program_opcodes(OPCODES *op, int enable_undo)
  *   - at least one program opcode (BYTE_PROGRAM, AAI_WORD_PROGRAM, ...?)
  *   - necessary preops? (EWSR, WREN, ...?)
  */
-static int ich_missing_opcodes()
+static int ich_missing_opcodes(void)
 {
 	uint8_t ops[] = {
 		JEDEC_READ,
@@ -891,7 +891,7 @@ static int ich7_run_opcode(OPCODE op, uint32_t offset,
 	case 2:
 		/* Select second preop. */
 		temp16 |= SPIC_SPOP;
-		/* And fall through. */
+		/* Fall through. */
 	case 1:
 		/* Atomic command (preop+op) */
 		temp16 |= SPIC_ACS;
@@ -1013,7 +1013,7 @@ static int ich9_run_opcode(OPCODE op, uint32_t offset,
 	case 2:
 		/* Select second preop. */
 		temp32 |= SSFC_SPOP;
-		/* And fall through. */
+		/* Fall through. */
 	case 1:
 		/* Atomic command (preop+op) */
 		temp32 |= SSFC_ACS;
@@ -1704,7 +1704,7 @@ int ich_init_spi(void *spibar, enum ich_chipset ich_gen)
 	char *arg;
 	int ich_spi_rw_restricted = 0;
 	int desc_valid = 0;
-	struct ich_descriptors desc = {{ 0 }};
+	struct ich_descriptors desc;
 	enum ich_spi_mode {
 		ich_auto,
 		ich_hwseq,
@@ -1714,6 +1714,8 @@ int ich_init_spi(void *spibar, enum ich_chipset ich_gen)
 
 	ich_generation = ich_gen;
 	ich_spibar = spibar;
+
+	memset(&desc, 0x00, sizeof(struct ich_descriptors));
 
 	/* Moving registers / bits */
 	if (ich_generation == CHIPSET_100_SERIES_SUNRISE_POINT) {
@@ -2008,7 +2010,7 @@ int via_init_spi(uint32_t mmio_base)
 	/* Do we really need no write enable? Like the LPC one at D17F0 0x40 */
 
 	/* Not sure if it speaks all these bus protocols. */
-	internal_buses_supported = BUS_LPC | BUS_FWH;
+	internal_buses_supported &= BUS_LPC | BUS_FWH;
 	ich_generation = CHIPSET_ICH7;
 	register_spi_master(&spi_master_via);
 

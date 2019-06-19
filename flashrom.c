@@ -255,6 +255,18 @@ const struct programmer_entry programmer_table[] = {
 	},
 #endif
 
+#if CONFIG_DEVELOPERBOX_SPI == 1
+	{
+		.name			= "developerbox",
+		.type			= USB,
+		.devs.dev		= devs_developerbox_spi,
+		.init			= developerbox_spi_init,
+		.map_flash_region	= fallback_map,
+		.unmap_flash_region	= fallback_unmap,
+		.delay			= internal_delay,
+	},
+#endif
+
 #if CONFIG_RAYER_SPI == 1
 	{
 		.name			= "rayer_spi",
@@ -425,16 +437,28 @@ const struct programmer_entry programmer_table[] = {
 	},
 #endif
 
+#if CONFIG_JLINK_SPI == 1
+	{
+		.name			= "jlink_spi",
+		.type			= OTHER,
+		.init			= jlink_spi_init,
+		.devs.note		= "SEGGER J-Link and compatible devices\n",
+		.map_flash_region	= fallback_map,
+		.unmap_flash_region	= fallback_unmap,
+		.delay			= internal_delay,
+	},
+#endif
+
 	{0}, /* This entry corresponds to PROGRAMMER_INVALID. */
 };
 
 #define SHUTDOWN_MAXFN 32
 static int shutdown_fn_count = 0;
 /** @private */
-struct shutdown_func_data {
+static struct shutdown_func_data {
 	int (*func) (void *data);
 	void *data;
-} static shutdown_fn[SHUTDOWN_MAXFN];
+} shutdown_fn[SHUTDOWN_MAXFN];
 /* Initialize to 0 to make sure nobody registers a shutdown function before
  * programmer init.
  */
@@ -642,7 +666,6 @@ char *extract_param(const char *const *haystack, const char *needle, const char 
 			return NULL;
 		/* Needle followed by '='? */
 		if (param_pos[needlelen] == '=') {
-			
 			/* Beginning of the string? */
 			if (param_pos == *haystack)
 				break;
@@ -1315,7 +1338,11 @@ notfound:
 	fallback->entry.start		= 0;
 	fallback->entry.end		= flash->chip->total_size * 1024 - 1;
 	fallback->entry.included	= true;
-	strcpy(fallback->entry.name, "complete flash");
+	fallback->entry.name		= strdup("complete flash");
+	if (!fallback->entry.name) {
+		msg_cerr("Failed to probe chip: %s\n", strerror(errno));
+		return -1;
+	}
 
 	if (flash->chip->manufacture_id == 0xEF /* 0xC2 */) {
 		uint8_t uniq_id[8];
@@ -1445,7 +1472,7 @@ static int read_by_layout(struct flashctx *, uint8_t *);
 int read_flash_to_file(struct flashctx *flash, const char *filename)
 {
 	unsigned long size = flash->chip->total_size * 1024;
-	unsigned char *buf = calloc(size, sizeof(char));
+	unsigned char *buf = calloc(size, sizeof(unsigned char));
 	int ret = 0;
 
 	#if (CONFIG_ONE_TIME_PROGRAM == 1)
@@ -1632,14 +1659,11 @@ static int check_block_eraser(const struct flashctx *flash, int k, int log)
 static int read_by_layout(struct flashctx *const flashctx, uint8_t *const buffer)
 {
 	const struct flashrom_layout *const layout = get_layout(flashctx);
+	const struct romentry *entry = NULL;
 
-	size_t i;
-	for (i = 0; i < layout->num_entries; ++i) {
-		if (!layout->entries[i].included)
-			continue;
-
-		const chipoff_t region_start	= layout->entries[i].start;
-		const chipsize_t region_len	= layout->entries[i].end - layout->entries[i].start + 1;
+	while ((entry = layout_next_included(layout, entry))) {
+		const chipoff_t region_start	= entry->start;
+		const chipsize_t region_len	= entry->end - entry->start + 1;
 
 		if (flashctx->chip->read(flashctx, buffer + region_start, region_start, region_len))
 			return 1;
@@ -1716,17 +1740,14 @@ static int walk_by_layout(struct flashctx *const flashctx, struct walk_info *con
 			  const per_blockfn_t per_blockfn)
 {
 	const struct flashrom_layout *const layout = get_layout(flashctx);
+	const struct romentry *entry = NULL;
 
 	all_skipped = true;
 	msg_cinfo("Erasing and writing flash chip... ");
 
-	size_t i;
-	for (i = 0; i < layout->num_entries; ++i) {
-		if (!layout->entries[i].included)
-			continue;
-
-		info->region_start = layout->entries[i].start;
-		info->region_end   = layout->entries[i].end;
+	while ((entry = layout_next_included(layout, entry))) {
+		info->region_start = entry->start;
+		info->region_end   = entry->end;
 
 		size_t j;
 		int error = 1; /* retry as long as it's 1 */
@@ -1771,17 +1792,80 @@ static int erase_block(struct flashctx *const flashctx,
 		       const struct walk_info *const info, const erasefn_t erasefn)
 {
 	const unsigned int erase_len = info->erase_end + 1 - info->erase_start;
+	const bool region_unaligned = info->region_start > info->erase_start ||
+				      info->erase_end > info->region_end;
+	uint8_t *backup_contents = NULL, *erased_contents = NULL;
+	int ret = 2;
 
+	/*
+	 * If the region is not erase-block aligned, merge current flash con-
+	 * tents into a new buffer `backup_contents`.
+	 */
+	if (region_unaligned) {
+		backup_contents = malloc(erase_len);
+		erased_contents = malloc(erase_len);
+		if (!backup_contents || !erased_contents) {
+			msg_cerr("Out of memory!\n");
+			ret = 1;
+			goto _free_ret;
+		}
+		memset(backup_contents, ERASED_VALUE(flashctx), erase_len);
+		memset(erased_contents, ERASED_VALUE(flashctx), erase_len);
+
+		msg_cdbg("R");
+		/* Merge data preceding the current region. */
+		if (info->region_start > info->erase_start) {
+			const chipoff_t start	= info->erase_start;
+			const chipsize_t len	= info->region_start - info->erase_start;
+			if (flashctx->chip->read(flashctx, backup_contents, start, len)) {
+				msg_cerr("Can't read! Aborting.\n");
+				goto _free_ret;
+			}
+		}
+		/* Merge data following the current region. */
+		if (info->erase_end > info->region_end) {
+			const chipoff_t start     = info->region_end + 1;
+			const chipoff_t rel_start = start - info->erase_start; /* within this erase block */
+			const chipsize_t len      = info->erase_end - info->region_end;
+			if (flashctx->chip->read(flashctx, backup_contents + rel_start, start, len)) {
+				msg_cerr("Can't read! Aborting.\n");
+				goto _free_ret;
+			}
+		}
+	}
+
+	ret = 1;
 	all_skipped = false;
 
 	msg_cdbg("E");
 	if (erasefn(flashctx, info->erase_start, erase_len))
-		return 1;
+		goto _free_ret;
 	if (check_erased_range(flashctx, info->erase_start, erase_len)) {
 		msg_cerr("ERASE FAILED!\n");
-		return 1;
+		goto _free_ret;
 	}
-	return 0;
+
+	if (region_unaligned) {
+		unsigned int starthere = 0, lenhere = 0, writecount = 0;
+		/* get_next_write() sets starthere to a new value after the call. */
+		while ((lenhere = get_next_write(erased_contents + starthere, backup_contents + starthere,
+						 erase_len - starthere, &starthere, flashctx->chip->gran))) {
+			if (!writecount++)
+				msg_cdbg("W");
+			/* Needs the partial write function signature. */
+			if (flashctx->chip->write(flashctx, backup_contents + starthere,
+						  info->erase_start + starthere, lenhere))
+				goto _free_ret;
+			starthere += lenhere;
+		}
+	}
+
+	ret = 0;
+
+_free_ret:
+	free(erased_contents);
+	free(backup_contents);
+	return ret;
 }
 
 /**
@@ -1934,14 +2018,11 @@ static int verify_by_layout(struct flashctx *const flashctx,
 			    void *const curcontents, const uint8_t *const newcontents)
 {
 	const struct flashrom_layout *const layout = get_layout(flashctx);
+	const struct romentry *entry = NULL;
 
-	size_t i;
-	for (i = 0; i < layout->num_entries; ++i) {
-		if (!layout->entries[i].included)
-			continue;
-
-		const chipoff_t region_start	= layout->entries[i].start;
-		const chipsize_t region_len	= layout->entries[i].end - layout->entries[i].start + 1;
+	while ((entry = layout_next_included(layout, entry))) {
+		const chipoff_t region_start	= entry->start;
+		const chipsize_t region_len	= entry->end - entry->start + 1;
 
 		if (flashctx->chip->read(flashctx, curcontents + region_start, region_start, region_len))
 			return 1;
@@ -2309,8 +2390,18 @@ int prepare_flash_access(struct flashctx *const flash,
 	flash->address_high_byte = -1;
 	flash->in_4ba_mode = false;
 
+	/* Be careful about 4BA chips and broken masters */
+	if (flash->chip->total_size > 16 * 1024 && spi_master_no_4ba_modes(flash)) {
+		/* If we can't use native instructions, bail out */
+		if ((flash->chip->feature_bits & FEATURE_4BA_NATIVE) != FEATURE_4BA_NATIVE
+		    || !spi_master_4ba(flash)) {
+			msg_cerr("Programmer doesn't support this chip. Aborting.\n");
+			return 1;
+		}
+	}
+
 	/* Enable/disable 4-byte addressing mode if flash chip supports it */
-	if (flash->chip->feature_bits & (FEATURE_4BA_ENTER | FEATURE_4BA_ENTER_WREN)) {
+	if (flash->chip->feature_bits & (FEATURE_4BA_ENTER | FEATURE_4BA_ENTER_WREN | FEATURE_4BA_ENTER_EAR7)) {
 		int ret;
 		if (spi_master_4ba(flash))
 			ret = spi_enter_4ba(flash);
@@ -2406,17 +2497,23 @@ static void combine_image_by_layout(const struct flashctx *const flashctx,
 				    uint8_t *const newcontents, const uint8_t *const oldcontents)
 {
 	const struct flashrom_layout *const layout = get_layout(flashctx);
+	const struct romentry *included;
+	chipoff_t start = 0;
 
-	size_t i;
-	for (i = 0; i < layout->num_entries; ++i) {
-		if (layout->entries[i].included)
-			continue;
-
-		const chipoff_t region_start	= layout->entries[i].start;
-		const chipsize_t region_len	= layout->entries[i].end - layout->entries[i].start + 1;
-
-		memcpy(newcontents + region_start, oldcontents + region_start, region_len);
+	while ((included = layout_next_included_region(layout, start))) {
+		if (included->start > start) {
+			/* copy everything up to the start of this included region */
+			memcpy(newcontents + start, oldcontents + start, included->start - start);
+		}
+		/* skip this included region */
+		start = included->end + 1;
+		if (start == 0)
+			return;
 	}
+
+	/* copy the rest of the chip */
+	const chipsize_t copy_len = flashctx->chip->total_size * 1024 - start;
+	memcpy(newcontents + start, oldcontents + start, copy_len);
 }
 
 /**

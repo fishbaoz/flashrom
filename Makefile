@@ -162,11 +162,21 @@ UNSUPPORTED_FEATURES += CONFIG_PONY_SPI=yes
 else
 override CONFIG_PONY_SPI = no
 endif
-# Dediprog, USB-Blaster, PICkit2, CH341A and FT2232 are not supported under DOS (missing USB support).
+# Digilent SPI, Dediprog, Developerbox, USB-Blaster, PICkit2, CH341A and FT2232 are not supported under DOS (missing USB support).
+ifeq ($(CONFIG_DIGILENT_SPI), yes)
+UNSUPPORTED_FEATURES += CONFIG_DIGILENT_SPI=yes
+else
+override CONFIG_DIGILENT_SPI = no
+endif
 ifeq ($(CONFIG_DEDIPROG), yes)
 UNSUPPORTED_FEATURES += CONFIG_DEDIPROG=yes
 else
 override CONFIG_DEDIPROG = no
+endif
+ifeq ($(CONFIG_DEVELOPERBOX_SPI), yes)
+UNSUPPORTED_FEATURES += CONFIG_DEVELOPERBOX_SPI=yes
+else
+override CONFIG_DEVELOPERBOX_SPI = no
 endif
 ifeq ($(CONFIG_FT2232_SPI), yes)
 UNSUPPORTED_FEATURES += CONFIG_FT2232_SPI=yes
@@ -187,6 +197,12 @@ ifeq ($(CONFIG_CH341A_SPI), yes)
 UNSUPPORTED_FEATURES += CONFIG_CH341A_SPI=yes
 else
 override CONFIG_CH341A_SPI = no
+endif
+# libjaylink is also not available for DOS
+ifeq ($(CONFIG_JLINK_SPI), yes)
+UNSUPPORTED_FEATURES += CONFIG_JLINK_SPI=yes
+else
+override CONFIG_JLINK_SPI = no
 endif
 endif
 
@@ -319,11 +335,16 @@ UNSUPPORTED_FEATURES += CONFIG_PONY_SPI=yes
 else
 override CONFIG_PONY_SPI = no
 endif
-# Dediprog, USB-Blaster, PICkit2, CH341A and FT2232 are not supported with libpayload (missing libusb support).
+# Dediprog, Developerbox, USB-Blaster, PICkit2, CH341A and FT2232 are not supported with libpayload (missing libusb support).
 ifeq ($(CONFIG_DEDIPROG), yes)
 UNSUPPORTED_FEATURES += CONFIG_DEDIPROG=yes
 else
 override CONFIG_DEDIPROG = no
+endif
+ifeq ($(CONFIG_DEVELOPERBOX_SPI), yes)
+UNSUPPORTED_FEATURES += CONFIG_DEVELOPERBOX_SPI=yes
+else
+override CONFIG_DEVELOPERBOX_SPI = no
 endif
 ifeq ($(CONFIG_FT2232_SPI), yes)
 UNSUPPORTED_FEATURES += CONFIG_FT2232_SPI=yes
@@ -534,7 +555,7 @@ CHIP_OBJS = jedec.o stm50.o w39.o w29ee011.o \
 ###############################################################################
 # Library code.
 
-LIB_OBJS = libflashrom.o layout.o flashrom.o udelay.o programmer.o helpers.o ich_descriptors.o
+LIB_OBJS = libflashrom.o layout.o flashrom.o udelay.o programmer.o helpers.o ich_descriptors.o fmap.o
 
 ###############################################################################
 # Frontend related stuff.
@@ -635,6 +656,9 @@ CONFIG_BUSPIRATE_SPI ?= no
 # Always enable Dediprog SF100 for now.
 CONFIG_DEDIPROG ?= no
 
+# Always enable Developerbox emergency recovery for now.
+CONFIG_DEVELOPERBOX_SPI ?= yes
+
 # Always enable Marvell SATA controllers for now.
 CONFIG_SATAMV ?= no
 
@@ -650,6 +674,9 @@ CONFIG_CH341A_SPI ?= no
 
 # Digilent Development board JTAG
 CONFIG_DIGILENT_SPI ?= no
+
+# Disable J-Link for now.
+CONFIG_JLINK_SPI ?= no
 
 # Disable wiki printing by default. It is only useful if you have wiki access.
 CONFIG_PRINT_WIKI ?= no
@@ -682,6 +709,7 @@ ifeq ($(CONFIG_ENABLE_LIBUSB1_PROGRAMMERS), no)
 override CONFIG_CH341A_SPI = no
 override CONFIG_DEDIPROG = no
 override CONFIG_DIGILENT_SPI = no
+override CONFIG_DEVELOPERBOX_SPI = no
 endif
 ifeq ($(CONFIG_ENABLE_LIBPCI_PROGRAMMERS), no)
 override CONFIG_INTERNAL = no
@@ -919,6 +947,12 @@ PROGRAMMER_OBJS += dediprog.o
 NEED_LIBUSB1 += CONFIG_DEDIPROG
 endif
 
+ifeq ($(CONFIG_DEVELOPERBOX_SPI), yes)
+FEATURE_CFLAGS += -D'CONFIG_DEVELOPERBOX_SPI=1'
+PROGRAMMER_OBJS += developerbox_spi.o
+NEED_LIBUSB1 += CONFIG_DEVELOPERBOX_SPI
+endif
+
 ifeq ($(CONFIG_SATAMV), yes)
 FEATURE_CFLAGS += -D'CONFIG_SATAMV=1'
 PROGRAMMER_OBJS += satamv.o
@@ -954,6 +988,12 @@ ifeq ($(CONFIG_DIGILENT_SPI), yes)
 FEATURE_CFLAGS += -D'CONFIG_DIGILENT_SPI=1'
 PROGRAMMER_OBJS += digilent_spi.o
 NEED_LIBUSB1 += CONFIG_DIGILENT_SPI
+endif
+
+ifeq ($(CONFIG_JLINK_SPI), yes)
+NEED_LIBJAYLINK += CONFIG_JLINK_SPI
+FEATURE_CFLAGS += -D'CONFIG_JLINK_SPI=1'
+PROGRAMMER_OBJS += jlink_spi.o
 endif
 
 ifneq ($(NEED_SERIAL), )
@@ -1015,6 +1055,7 @@ endif
 ifneq ($(NEED_LIBUSB1), )
 CHECK_LIBUSB1 = yes
 FEATURE_CFLAGS += -D'NEED_LIBUSB1=1'
+PROGRAMMER_OBJS += usbdev.o
 # FreeBSD and DragonflyBSD use a reimplementation of libusb-1.0 that is simply called libusb
 ifeq ($(TARGET_OS),$(filter $(TARGET_OS),FreeBSD DragonFlyBSD))
 USB1LIBS += -lusb
@@ -1027,6 +1068,12 @@ USB1LIBS += $(call debug_shell,[ -n "$(PKG_CONFIG_LIBDIR)" ] && export PKG_CONFI
 override CPPFLAGS += $(call debug_shell,[ -n "$(PKG_CONFIG_LIBDIR)" ] && export PKG_CONFIG_LIBDIR="$(PKG_CONFIG_LIBDIR)"; $(PKG_CONFIG) --cflags-only-I libusb-1.0  || printf "%s" "-I/usr/include/libusb-1.0")
 endif
 endif
+endif
+
+ifneq ($(NEED_LIBJAYLINK), )
+CHECK_LIBJAYLINK = yes
+JAYLINKLIBS += $(call debug_shell,[ -n "$(PKG_CONFIG_LIBDIR)" ] && export PKG_CONFIG_LIBDIR="$(PKG_CONFIG_LIBDIR)"; $(PKG_CONFIG) --libs libjaylink)
+override CPPFLAGS += $(call debug_shell,[ -n "$(PKG_CONFIG_LIBDIR)" ] && export PKG_CONFIG_LIBDIR="$(PKG_CONFIG_LIBDIR)"; $(PKG_CONFIG) --cflags-only-I libjaylink)
 endif
 
 ifeq ($(CONFIG_PRINT_WIKI), yes)
@@ -1055,7 +1102,7 @@ ifeq ($(ARCH), x86)
 endif
 
 $(PROGRAM)$(OTP)$(EXEC_SUFFIX): $(OBJS)
-	$(CC) $(LDFLAGS) -o $(PROGRAM)$(OTP)$(EXEC_SUFFIX) $(OBJS) $(LIBS) $(PCILIBS) $(FEATURE_LIBS) $(USBLIBS) $(USB1LIBS)
+	$(CC) $(LDFLAGS) -o $(PROGRAM)$(OTP)$(EXEC_SUFFIX) $(OBJS) $(LIBS) $(PCILIBS) $(FEATURE_LIBS) $(USBLIBS) $(USB1LIBS) $(JAYLINKLIBS)
 
 libflashrom.a: $(LIBFLASHROM_OBJS)
 	$(AR) rcs $@ $^
@@ -1189,6 +1236,24 @@ int main(int argc, char **argv)
 endef
 export LIBUSB1_TEST
 
+define LIBJAYLINK_TEST
+#include <stddef.h>
+#include <libjaylink/libjaylink.h>
+int main(int argc, char **argv)
+{
+	struct jaylink_context *ctx;
+
+	(void)argc;
+	(void)argv;
+
+	jaylink_init(&ctx);
+	jaylink_exit(ctx);
+
+	return 0;
+}
+endef
+export LIBJAYLINK_TEST
+
 hwlibs: compiler
 	@printf "" > .libdeps
 ifeq ($(CHECK_LIBPCI), yes)
@@ -1263,6 +1328,28 @@ ifeq ($(CHECK_LIBUSB1), yes)
 		echo "The following features require libusb-1.0: $(NEED_LIBUSB1).";	\
 		echo "Please install libusb-1.0 or disable all features"; \
 		echo "mentioned above by specifying make CONFIG_ENABLE_LIBUSB1_PROGRAMMERS=no"; \
+		echo "See README for more information."; echo;				\
+		rm -f .test.c .test.o .test$(EXEC_SUFFIX); exit 1; }; } 2>>$(BUILD_DETAILS_FILE); echo $? >&3 ; } | tee -a $(BUILD_DETAILS_FILE) >&4; } 3>&1;} | { read rc ; exit ${rc}; } } 4>&1
+	@rm -f .test.c .test.o .test$(EXEC_SUFFIX)
+endif
+ifeq ($(CHECK_LIBJAYLINK), yes)
+	@printf "Checking for libjaylink headers... " | tee -a $(BUILD_DETAILS_FILE)
+	@echo "$$LIBJAYLINK_TEST" > .test.c
+	@printf "\nexec: %s\n" "$(CC) -c $(CPPFLAGS) $(CFLAGS) .test.c -o .test.o" >>$(BUILD_DETAILS_FILE)
+	@{ { { { { $(CC) -c $(CPPFLAGS) $(CFLAGS) .test.c -o .test.o >&2 && \
+		echo "found." || { echo "not found."; echo;				\
+		echo "The following feature requires libjaylink: $(NEED_LIBJAYLINK).";	\
+		echo "Please install libjaylink headers or disable the feature"; \
+		echo "mentioned above by specifying make CONFIG_JLINK_SPI=no"; \
+		echo "See README for more information."; echo;				\
+		rm -f .test.c .test.o; exit 1; }; } 2>>$(BUILD_DETAILS_FILE); echo $? >&3 ; } | tee -a $(BUILD_DETAILS_FILE) >&4; } 3>&1;} | { read rc ; exit ${rc}; } } 4>&1
+	@printf "Checking if libjaylink is usable... " | tee -a $(BUILD_DETAILS_FILE)
+	@printf "\nexec: %s\n" "$(CC) $(LDFLAGS) .test.o -o .test$(EXEC_SUFFIX) $(LIBS) $(JAYLINKLIBS)" >>$(BUILD_DETAILS_FILE)
+	@{ { { { { $(CC) $(LDFLAGS) .test.o -o .test$(EXEC_SUFFIX) $(LIBS) $(JAYLINKLIBS) >&2 && \
+		echo "yes." || { echo "no.";						\
+		echo "The following feature requires libjaylink: $(NEED_LIBJAYLINK).";	\
+		echo "Please install libjaylink or disable the feature"; \
+		echo "mentioned above by specifying make CONFIG_JLINK_SPI=no"; \
 		echo "See README for more information."; echo;				\
 		rm -f .test.c .test.o .test$(EXEC_SUFFIX); exit 1; }; } 2>>$(BUILD_DETAILS_FILE); echo $? >&3 ; } | tee -a $(BUILD_DETAILS_FILE) >&4; } 3>&1;} | { read rc ; exit ${rc}; } } 4>&1
 	@rm -f .test.c .test.o .test$(EXEC_SUFFIX)

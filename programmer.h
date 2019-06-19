@@ -73,6 +73,9 @@ enum programmer {
 #if CONFIG_DEDIPROG == 1
 	PROGRAMMER_DEDIPROG,
 #endif
+#if CONFIG_DEVELOPERBOX_SPI == 1
+	PROGRAMMER_DEVELOPERBOX_SPI,
+#endif
 #if CONFIG_RAYER_SPI == 1
 	PROGRAMMER_RAYER_SPI,
 #endif
@@ -114,6 +117,9 @@ enum programmer {
 #endif
 #if CONFIG_DIGILENT_SPI == 1
 	PROGRAMMER_DIGILENT_SPI,
+#endif
+#if CONFIG_JLINK_SPI == 1
+	PROGRAMMER_JLINK_SPI,
 #endif
 	PROGRAMMER_INVALID /* This must always be the last entry. */
 };
@@ -172,6 +178,9 @@ enum bitbang_spi_master_type {
 #if CONFIG_OGP_SPI == 1
 	BITBANG_SPI_MASTER_OGP,
 #endif
+#if CONFIG_DEVELOPERBOX_SPI == 1
+	BITBANG_SPI_MASTER_DEVELOPERBOX,
+#endif
 };
 
 struct bitbang_spi_master {
@@ -184,6 +193,9 @@ struct bitbang_spi_master {
 	int (*get_miso) (void);
 	void (*request_bus) (void);
 	void (*release_bus) (void);
+	/* optional functions to optimize xfers */
+	void (*set_sck_set_mosi) (int sck, int mosi);
+	int (*set_sck_get_miso) (int sck);
 	/* Length of half a clock period in usecs. */
 	unsigned int half_period;
 };
@@ -214,6 +226,7 @@ int rpci_write_long(struct pci_dev *dev, int reg, uint32_t data);
 struct penable {
 	uint16_t vendor_id;
 	uint16_t device_id;
+	enum chipbustype buses;
 	const enum test_state status;
 	const char *vendor_name;
 	const char *device_name;
@@ -545,6 +558,12 @@ int dediprog_init(void);
 extern const struct dev_entry devs_dediprog[];
 #endif
 
+/* developerbox_spi.c */
+#if CONFIG_DEVELOPERBOX_SPI == 1
+int developerbox_spi_init(void);
+extern const struct dev_entry devs_developerbox_spi[];
+#endif
+
 /* ch341a_spi.c */
 #if CONFIG_CH341A_SPI == 1
 int ch341a_spi_init(void);
@@ -556,6 +575,11 @@ extern const struct dev_entry devs_ch341a_spi[];
 #if CONFIG_DIGILENT_SPI == 1
 int digilent_spi_init(void);
 extern const struct dev_entry devs_digilent_spi[];
+#endif
+
+/* jlink_spi.c */
+#if CONFIG_JLINK_SPI == 1
+int jlink_spi_init(void);
 #endif
 
 /* flashrom.c */
@@ -626,6 +650,9 @@ enum spi_controller {
 #if CONFIG_DIGILENT_SPI == 1
 	SPI_CONTROLLER_DIGILENT_SPI,
 #endif
+#if CONFIG_JLINK_SPI == 1
+	SPI_CONTROLLER_JLINK_SPI,
+#endif
 };
 
 #define MAX_DATA_UNSPECIFIED 0
@@ -633,6 +660,8 @@ enum spi_controller {
 #define MAX_DATA_WRITE_UNLIMITED 256
 
 #define SPI_MASTER_4BA			(1U << 0)  /**< Can handle 4-byte addresses */
+#define SPI_MASTER_NO_4BA_MODES		(1U << 1)  /**< Compatibility modes (i.e. extended address
+						        register, 4BA mode switch) don't work */
 
 struct spi_master {
 	enum spi_controller type;
@@ -825,5 +854,18 @@ static inline bool spi_master_4ba(const struct flashctx *const flash)
 	return flash->mst->buses_supported & BUS_SPI &&
 		flash->mst->spi.features & SPI_MASTER_4BA;
 }
+static inline bool spi_master_no_4ba_modes(const struct flashctx *const flash)
+{
+	return flash->mst->buses_supported & BUS_SPI &&
+		flash->mst->spi.features & SPI_MASTER_NO_4BA_MODES;
+}
+
+/* usbdev.c */
+struct libusb_device_handle;
+struct libusb_context;
+struct libusb_device_handle *usb_dev_get_by_vid_pid_serial(
+		struct libusb_context *usb_ctx, uint16_t vid, uint16_t pid, const char *serialno);
+struct libusb_device_handle *usb_dev_get_by_vid_pid_number(
+		struct libusb_context *usb_ctx, uint16_t vid, uint16_t pid, unsigned int num);
 
 #endif				/* !__PROGRAMMER_H__ */

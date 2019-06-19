@@ -600,12 +600,15 @@ int it8705f_write_enable(uint8_t port)
 	uint8_t tmp;
 	int ret = 0;
 
+	if (!(internal_buses_supported & BUS_PARALLEL))
+		return 1;
+
 	enter_conf_mode_ite(port);
 	tmp = sio_read(port, 0x24);
 	/* Check if at least one flash segment is enabled. */
 	if (tmp & 0xf0) {
 		/* The IT8705F will respond to LPC cycles and translate them. */
-		internal_buses_supported = BUS_PARALLEL;
+		internal_buses_supported &= BUS_PARALLEL;
 		/* Flash ROM I/F Writes Enable */
 		tmp |= 0x04;
 		msg_pdbg("Enabling IT8705F flash ROM interface write.\n");
@@ -2434,7 +2437,7 @@ const struct board_match board_matches[] = {
 	{0x8086, 0x27a0, 0x17aa, 0x2017,  0x8086, 0x27b9, 0x17aa, 0x2009, "^ThinkPad T60", NULL, NULL,        P2, "IBM/Lenovo",  "ThinkPad T60(s)",       0,   OK, p2_whitelist_laptop},
 	{0x8086, 0x2917, 0x17AA, 0x20F5,  0x8086, 0x2930, 0x17AA, 0x20F9, "^ThinkPad W500", NULL, NULL,       P2, "IBM/Lenovo",  "ThinkPad W500",         0,   OK, p2_whitelist_laptop},
 	{0x8086, 0x2917, 0x17AA, 0x20F5,  0x8086, 0x2930, 0x17AA, 0x20F9, "^ThinkPad X200", NULL, NULL,       P2, "IBM/Lenovo",  "ThinkPad X200",         0,   OK, p2_whitelist_laptop},
-	{0x8086, 0x3B07, 0x17AA, 0x2166,  0x8086, 0x3B30, 0x17AA, 0x2167, "^Lenovo X201", NULL, NULL,         P2, "IBM/Lenovo",  "ThinkPad X201",         0,   OK, p2_whitelist_laptop},
+	{0x8086, 0x3B07, 0x17AA, 0x2166,  0x8086, 0x3B30, 0x17AA, 0x2167, "^ThinkPad X201", NULL, NULL,       P2, "IBM/Lenovo",  "ThinkPad X201",         0,   OK, p2_whitelist_laptop},
 	{0x8086, 0x1C22, 0x17AA, 0x21DB,  0x8086, 0x1C4F, 0x17AA, 0x21DB, NULL, "lenovo", "x220",             P2, "IBM/Lenovo",  "ThinkPad X220",         0,   OK, p2_whitelist_laptop},
 	{0x8086, 0x1E22, 0x17AA, 0x21FA,  0x8086, 0x1E55, 0x17AA, 0x21FA, "^ThinkPad X230", NULL, NULL,       P2, "IBM/Lenovo",  "ThinkPad X230",         0,   OK, p2_whitelist_laptop},
 	{0x8086, 0x27A0, 0x17AA, 0x2017,  0x8086, 0x27B9, 0x17AA, 0x2009, "^ThinkPad X60", NULL, NULL,        P2, "IBM/Lenovo",  "ThinkPad X60(s)",       0,   OK, p2_whitelist_laptop},
@@ -2585,7 +2588,7 @@ static const struct board_match *board_match_name(const char *vendor, const char
  * Match boards on PCI IDs and subsystem IDs.
  * Second set of IDs can be either main+subsystem IDs, main IDs or no IDs.
  */
-const static struct board_match *board_match_pci_ids(enum board_match_phase phase)
+static const struct board_match *board_match_pci_ids(enum board_match_phase phase)
 {
 	const struct board_match *board = board_matches;
 

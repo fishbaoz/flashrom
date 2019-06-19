@@ -44,12 +44,10 @@
 .SH NAME
 flashrom \- detect, read, write, verify and erase flash chips
 .SH SYNOPSIS
-.B flashrom \fR[\fB\-h\fR|\fB\-R\fR|\fB\-L\fR|\fB\-z\fR|\
-\fB\-p\fR <programmername>[:<parameters>]
-               [\fB\-E\fR|\fB\-r\fR <file>|\fB\-w\fR <file>|\fB\-v\fR <file>] \
-[\fB\-c\fR <chipname>]
-               [(\fB\-l\fR <file>|\fB\-\-ifd\fR) [\fB\-i\fR <image>]] \
-[\fB\-n\fR] [\fB\-N\fR] [\fB\-f\fR]]
+.B flashrom \fR[\fB\-h\fR|\fB\-R\fR|\fB\-L\fR|\fB\-z\fR|\fB\-p\fR <programmername>[:<parameters>]
+            [\fB\-E\fR|\fB\-r\fR <file>|\fB\-w\fR <file>|\fB\-v\fR <file>] [\fB\-c\fR <chipname>]
+            [(\fB\-l\fR <file>|\fB\-\-ifd|\fB \-\-fmap\fR|\fB\-\-fmap-file\fR <file>) [\fB\-i\fR <image>]]
+            [\fB\-n\fR] [\fB\-N\fR] [\fB\-f\fR]]
          [\fB\-V\fR[\fBV\fR[\fBV\fR]]] [\fB-o\fR <logfile>]
 .SH DESCRIPTION
 .B flashrom
@@ -195,6 +193,34 @@ To update only the images named
 .sp
 Overlapping sections are not supported.
 .TP
+.B "\-\-fmap"
+Read layout from fmap in flash chip.
+.sp
+flashrom supports the fmap binary format which is commonly used by coreboot
+for partitioning a flash chip. The on-chip fmap will be read and used to generate
+the layout.
+.sp
+If you only want to update the
+.BR "COREBOOT"
+region defined in the fmap, run
+.sp
+.B " flashrom -p prog \-\-fmap \-\-image COREBOOT \-w some.rom"
+.TP
+.B "\-\-fmap-file <file>"
+Read layout from a
+.BR <file>
+containing binary fmap (e.g. coreboot roms).
+.sp
+flashrom supports the fmap binary format which is commonly used by coreboot
+for partitioning a flash chip. The fmap in the specified file will be read and
+used to generate the layout.
+.sp
+If you only want to update the
+.BR "COREBOOT"
+region defined in the binary fmap file, run
+.sp
+.B "  flashrom \-p prog \-\-fmap-file some.rom \-\-image COREBOOT \-w some.rom"
+.TP
 .B "\-\-ifd"
 Read ROM layout from Intel Firmware Descriptor.
 .sp
@@ -304,6 +330,8 @@ bitbanging adapter)
 .BR "* ch341a_spi" " (for SPI flash ROMs attached to WCH CH341A)"
 .sp
 .BR "* digilent_spi" " (for SPI flash ROMs attached to iCEblink40 development boards)"
+.sp
+.BR "* jlink_spi" " (for SPI flash ROMs attached to SEGGER J-Link and compatible devices)"
 .sp
 Some programmers have optional or mandatory parameters which are described
 in detail in the
@@ -515,21 +543,22 @@ Example:
 .TP
 .B Laptops
 .sp
-Using flashrom on laptops is dangerous and may easily make your hardware
-unusable (see also the
+Using flashrom on older laptops that don't boot from the SPI bus is
+dangerous and may easily make your hardware unusable (see also the
 .B BUGS
-section). The embedded controller (EC) in these
-machines often interacts badly with flashing.
+section). The embedded controller (EC) in some
+machines may interact badly with flashing.
 More information is
 .URLB https://flashrom.org/Laptops "in the wiki" .
-For example the EC firmware sometimes resides on the same
-flash chip as the host firmware. While flashrom tries to change the contents of
+Problems occur when the flash chip is shared between BIOS
+and EC firmware, and the latter does not expect flashrom
+to access the chip. While flashrom tries to change the contents of
 that memory the EC might need to fetch new instructions or data from it and
 could stop working correctly. Probing for and reading from the chip may also
 irritate your EC and cause fan failure, backlight failure, sudden poweroff, and
-other nasty effects. flashrom will attempt to detect if it is running on a
-laptop and abort immediately for safety reasons if it clearly identifies the
-host computer as one. If you want to proceed anyway at your own risk, use
+other nasty effects. flashrom will attempt to detect if it is running on such a
+laptop and limit probing to SPI buses. If you want to probe the LPC bus
+anyway at your own risk, use
 .sp
 .B "  flashrom \-p internal:laptop=force_I_want_a_brick"
 .sp
@@ -540,8 +569,8 @@ You have been warned.
 .sp
 Currently we rely on the chassis type encoded in the DMI/SMBIOS data to detect
 laptops. Some vendors did not implement those bits correctly or set them to
-generic and/or dummy values. flashrom will then issue a warning and bail out
-like above. In this case you can use
+generic and/or dummy values. flashrom will then issue a warning and restrict
+buses like above. In this case you can use
 .sp
 .B "  flashrom \-p internal:laptop=this_is_not_a_laptop"
 .sp
@@ -722,9 +751,9 @@ Olimex ARM-USB-TINY/-H, Olimex ARM-USB-OCD/-H, OpenMoko Neo1973 Debug board (V2+
 Multi-Protocol Adapter (TUMPA), TUMPA Lite, GOEPEL PicoTAP and Google Servo v1/v2.
 .sp
 An optional parameter specifies the controller
-type and channel/interface/port it should support. For that you have to use the
+type, channel/interface/port and GPIO-based chip select it should support. For that you have to use the
 .sp
-.B "  flashrom \-p ft2232_spi:type=model,port=interface"
+.B "  flashrom \-p ft2232_spi:type=model,port=interface,csgpiol=gpio"
 .sp
 syntax where
 .B model
@@ -733,14 +762,17 @@ can be
 arm-usb-tiny ", " arm-usb-tiny-h ", " arm-usb-ocd ", " arm-usb-ocd-h \
 ", " tumpa ", " tumpalite ", " picotap ", " google-servo ", " google-servo-v2 \
 " or " google-servo-v2-legacy
-and
 .B interface
 can be
-.BR A ", " B ", " C ", or " D .
+.BR A ", " B ", " C ", or " D
+and
+.B csgpiol
+can be a number between 0 and 3, denoting GPIOL0-GPIOL3 correspondingly.
 The default model is
 .B 4232H
-and the default interface is
-.BR A .
+the default interface is
+.BR A
+and GPIO is not used by default.
 .sp
 If there is more than one ft2232_spi-compatible device connected, you can select which one should be used by
 specifying its serial number with the
@@ -1102,6 +1134,60 @@ can be
 (in Hz). The default is a frequency of 4 MHz.
 .sp
 .SS
+.BR "jlink_spi " programmer
+.IP
+This module supports SEGGER J-Link and compatible devices.
+
+The \fBMOSI\fP signal of the flash chip must be attached to \fBTDI\fP pin of
+the programmer, \fBMISO\fP to \fBTDO\fP and \fBSCK\fP to \fBTCK\fP.
+The chip select (\fBCS\fP) signal of the flash chip can be attached to
+different pins of the programmer which can be selected with the
+.sp
+.B "  flashrom \-p jlink_spi:cs=pin"
+.sp
+syntax where \fBpin\fP can be either \fBTRST\fP or \fBRESET\fP.
+The default pin for chip select is \fBRESET\fP.
+Note that, when using \fBRESET\fP, it is normal that the indicator LED blinks
+orange or red.
+.br
+Additionally, the \fBVTref\fP pin of the programmer must be attached to the
+logic level of the flash chip.
+The programmer measures the voltage on this pin and generates the reference
+voltage for its input comparators and adapts its output voltages to it.
+.sp
+Pinout for devices with 20-pin JTAG connector:
+.sp
+    +-------+
+    |  1  2 |     1: VTref     2:
+    |  3  4 |     3: TRST      4: GND
+    |  5  6 |     5: TDI       6: GND
+  +-+  7  8 |     7:           8: GND
+  |    9 10 |     9: TCK      10: GND
+  |   11 12 |    11:          12: GND
+  +-+ 13 14 |    13: TDO      14:
+    | 15 16 |    15: RESET    16:
+    | 17 18 |    17:          18:
+    | 19 20 |    19: PWR_5V   20:
+    +-------+
+.sp
+If there is more than one compatible device connected, you can select which one
+should be used by specifying its serial number with the
+.sp
+.B "  flashrom \-p jlink_spi:serial=number"
+.sp
+syntax where
+.B number
+is the serial number of the device (which can be found for example in the
+output of lsusb -v).
+.sp
+The SPI speed can be selected by using the
+.sp
+.B "  flashrom \-p jlink_spi:spispeed=frequency"
+.sp
+syntax where \fBfrequency\fP is the SPI clock frequency in kHz.
+The maximum speed depends on the device in use.
+.SS
+
 .SH EXAMPLES
 To back up and update your BIOS, run
 .sp
@@ -1206,10 +1292,10 @@ channel.
 .SS
 .B Laptops
 .sp
-Using flashrom on laptops is dangerous and may easily make your hardware
-unusable. flashrom will attempt to detect if it is running on a laptop and abort
-immediately for safety reasons. Please see the detailed discussion of this topic
-and associated flashrom options in the
+Using flashrom on older laptops is dangerous and may easily make your hardware
+unusable. flashrom will attempt to detect if it is running on a susceptible
+laptop and restrict flash-chip probing for safety reasons. Please see the
+detailed discussion of this topic and associated flashrom options in the
 .B Laptops
 paragraph in the
 .B internal programmer

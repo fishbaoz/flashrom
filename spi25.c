@@ -361,9 +361,11 @@ static int spi_simple_write_cmd(struct flashctx *const flash, const uint8_t op, 
 {
 	struct spi_command cmds[] = {
 	{
+		.readarr = 0,
 		.writecnt = 1,
 		.writearr = (const unsigned char[]){ JEDEC_WREN },
 	}, {
+		.readarr = 0,
 		.writecnt = 1,
 		.writearr = (const unsigned char[]){ op },
 	},
@@ -381,13 +383,16 @@ static int spi_simple_write_cmd(struct flashctx *const flash, const uint8_t op, 
 
 static int spi_write_extended_address_register(struct flashctx *const flash, const uint8_t regdata)
 {
+	const uint8_t op = flash->chip->wrea_override ? : JEDEC_WRITE_EXT_ADDR_REG;
 	struct spi_command cmds[] = {
 	{
+		.readarr = 0,
 		.writecnt = 1,
 		.writearr = (const unsigned char[]){ JEDEC_WREN },
 	}, {
+		.readarr = 0,
 		.writecnt = 2,
-		.writearr = (const unsigned char[]){ JEDEC_WRITE_EXT_ADDR_REG, regdata },
+		.writearr = (const unsigned char[]){ op, regdata },
 	},
 		NULL_SPI_CMD,
 	};
@@ -398,7 +403,7 @@ static int spi_write_extended_address_register(struct flashctx *const flash, con
 	return result;
 }
 
-static int spi_set_extended_address(struct flashctx *const flash, const uint8_t addr_high)
+int spi_set_extended_address(struct flashctx *const flash, const uint8_t addr_high)
 {
 	if (flash->address_high_byte != addr_high &&
 	    spi_write_extended_address_register(flash, addr_high))
@@ -458,9 +463,11 @@ static int spi_write_cmd(struct flashctx *const flash, const uint8_t op,
 	uint8_t cmd[1 + JEDEC_MAX_ADDR_LEN + 256];
 	struct spi_command cmds[] = {
 	{
+		.readarr = 0,
 		.writecnt = 1,
 		.writearr = (const unsigned char[]){ JEDEC_WREN },
 	}, {
+		.readarr = 0,
 		.writearr = cmd,
 	},
 		NULL_SPI_CMD,
@@ -903,6 +910,8 @@ static int spi_enter_exit_4ba(struct flashctx *const flash, const bool enter)
 		ret = spi_send_command(flash, sizeof(cmd), 0, &cmd, NULL);
 	else if (flash->chip->feature_bits & FEATURE_4BA_ENTER_WREN)
 		ret = spi_simple_write_cmd(flash, cmd, 0);
+	else if (flash->chip->feature_bits & FEATURE_4BA_ENTER_EAR7)
+		ret = spi_set_extended_address(flash, enter ? 0x80 : 0x00);
 
 	if (!ret)
 		flash->in_4ba_mode = enter;

@@ -69,6 +69,7 @@ ssize_t ich_number_of_masters(const enum ich_chipset cs, const struct ich_desc_c
 	case CHIPSET_C620_SERIES_LEWISBURG:
 		if (cont->NM <= MAX_NUM_MASTERS)
 			return cont->NM;
+		break;
 	default:
 		if (cont->NM < MAX_NUM_MASTERS)
 			return cont->NM + 1;
@@ -213,23 +214,23 @@ static const char *pprint_density(enum ich_chipset cs, const struct ich_descript
 static const char *pprint_freq(enum ich_chipset cs, uint8_t value)
 {
 	static const char *const freq_str[2][8] = { {
-		"20 MHz",	/* 000 */
-		"33 MHz",	/* 001 */
-		"reserved",	/* 010 */
-		"reserved",	/* 011 */
-		"50 MHz",	/* 100 */ /* New since Ibex Peak */
-		"reserved",	/* 101 */
-		"reserved",	/* 110 */
-		"reserved"	/* 111 */
+		"20 MHz",
+		"33 MHz",
+		"reserved",
+		"reserved",
+		"50 MHz",	/* New since Ibex Peak */
+		"reserved",
+		"reserved",
+		"reserved"
 	}, {
-		"reserved",	/* 000 */
-		"reserved",	/* 001 */
-		"48 MHz",	/* 010 */
-		"reserved",	/* 011 */
-		"30 MHz",	/* 100 */
-		"reserved",	/* 101 */
-		"17 MHz",	/* 110 */
-		"reserved"	/* 111 */
+		"reserved",
+		"reserved",
+		"48 MHz",
+		"reserved",
+		"30 MHz",
+		"reserved",
+		"17 MHz",
+		"reserved"
 	} };
 
 	switch (cs) {
@@ -238,6 +239,7 @@ static const char *pprint_freq(enum ich_chipset cs, uint8_t value)
 	case CHIPSET_ICH10:
 		if (value > 1)
 			return "reserved";
+		/* Fall through. */
 	case CHIPSET_5_SERIES_IBEX_PEAK:
 	case CHIPSET_6_SERIES_COUGAR_POINT:
 	case CHIPSET_7_SERIES_PANTHER_POINT:
@@ -1151,7 +1153,8 @@ int read_ich_descriptors_via_fdo(enum ich_chipset cs, void *spibar, struct ich_d
  * @param len    The length of the descriptor dump.
  *
  * @return 0 on success,
- *	   1 if the descriptor couldn't be parsed.
+ *	   1 if the descriptor couldn't be parsed,
+ *	   2 when out of memory.
  */
 int layout_from_ich_descriptors(struct ich_layout *const layout, const void *const dump, const size_t len)
 {
@@ -1176,7 +1179,9 @@ int layout_from_ich_descriptors(struct ich_layout *const layout, const void *con
 		layout->entries[j].start = base;
 		layout->entries[j].end = limit;
 		layout->entries[j].included = false;
-		snprintf(layout->entries[j].name, sizeof(layout->entries[j].name), "%s", regions[i]);
+		layout->entries[j].name = strdup(regions[i]);
+		if (!layout->entries[j].name)
+			return 2;
 		++j;
 	}
 	layout->base.entries = layout->entries;

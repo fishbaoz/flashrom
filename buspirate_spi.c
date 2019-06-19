@@ -252,7 +252,7 @@ int buspirate_spi_init(void)
 	}
 	free(tmp);
 
-	/* Extract serialspeed paramater */
+	/* Extract serialspeed parameter */
 	tmp = extract_programmer_param("serialspeed");
 	if (tmp) {
 		for (i = 0; serialspeeds[i].name; i++) {
@@ -507,6 +507,8 @@ int buspirate_spi_init(void)
 	/* Enter raw SPI mode */
 	bp_commbuf[0] = 0x01;
 	ret = buspirate_sendrecv(bp_commbuf, 1, 0);
+	if (ret)
+		return 1;
 	if ((ret = buspirate_wait_for_string(bp_commbuf, "SPI")))
 		return ret;
 	if ((ret = buspirate_sendrecv(bp_commbuf, 0, 1)))
