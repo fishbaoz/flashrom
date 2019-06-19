@@ -657,7 +657,7 @@ CONFIG_BUSPIRATE_SPI ?= no
 CONFIG_DEDIPROG ?= no
 
 # Always enable Developerbox emergency recovery for now.
-CONFIG_DEVELOPERBOX_SPI ?= yes
+CONFIG_DEVELOPERBOX_SPI ?= no
 
 # Always enable Marvell SATA controllers for now.
 CONFIG_SATAMV ?= no
