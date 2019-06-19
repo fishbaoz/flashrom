@@ -787,7 +787,7 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 				return rc;
 		}
 	}
-	msg_ginfo(".");
+	//msg_ginfo(".");
 	#if (CONFIG_ONE_TIME_PROGRAM == 1)
 	spi_exit_otp(flash);
 	#endif

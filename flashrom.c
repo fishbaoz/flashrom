@@ -1724,6 +1724,7 @@ static int walk_eraseblocks(struct flashctx *const flashctx,
 			else
 				msg_cdbg(", ");
 			msg_cdbg("0x%06x-0x%06x:", info->erase_start, info->erase_end);
+			msg_cinfo(".");
 
 			ret = per_blockfn(flashctx, info, eraser->block_erase);
 			if (ret)
