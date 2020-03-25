@@ -598,6 +598,8 @@ static enum chipbustype enable_flash_ich_report_gcs(
 		break;
 	case CHIPSET_100_SERIES_SUNRISE_POINT:
 	case CHIPSET_C620_SERIES_LEWISBURG:
+	case CHIPSET_300_SERIES_CANNON_POINT:
+	case CHIPSET_APOLLO_LAKE:
 		reg_name = "BIOS_SPI_BC";
 		gcs = pci_read_long(dev, 0xdc);
 		bild = (gcs >> 7) & 1;
@@ -620,13 +622,13 @@ static enum chipbustype enable_flash_ich_report_gcs(
 	};
 	static const struct boot_straps boot_straps_EP80579[] =
 		{ { "SPI", BUS_SPI },
-		  { "reserved" },
-		  { "reserved" },
+		  { "reserved", BUS_NONE },
+		  { "reserved", BUS_NONE },
 		  { "LPC", BUS_LPC | BUS_FWH } };
 	static const struct boot_straps boot_straps_ich7_nm10[] =
-		{ { "reserved" },
+		{ { "reserved", BUS_NONE },
 		  { "SPI", BUS_SPI },
-		  { "PCI" },
+		  { "PCI", BUS_NONE },
 		  { "LPC", BUS_LPC | BUS_FWH } };
 	static const struct boot_straps boot_straps_tunnel_creek[] =
 		{ { "SPI", BUS_SPI },
@@ -634,26 +636,29 @@ static enum chipbustype enable_flash_ich_report_gcs(
 	static const struct boot_straps boot_straps_ich8910[] =
 		{ { "SPI", BUS_SPI },
 		  { "SPI", BUS_SPI },
-		  { "PCI" },
+		  { "PCI", BUS_NONE },
 		  { "LPC", BUS_LPC | BUS_FWH } };
 	static const struct boot_straps boot_straps_pch567[] =
 		{ { "LPC", BUS_LPC | BUS_FWH },
-		  { "reserved" },
-		  { "PCI" },
+		  { "reserved", BUS_NONE },
+		  { "PCI", BUS_NONE },
 		  { "SPI", BUS_SPI } };
 	static const struct boot_straps boot_straps_pch89_baytrail[] =
 		{ { "LPC", BUS_LPC | BUS_FWH },
-		  { "reserved" },
-		  { "reserved" },
+		  { "reserved", BUS_NONE },
+		  { "reserved", BUS_NONE },
 		  { "SPI", BUS_SPI } };
 	static const struct boot_straps boot_straps_pch8_lp[] =
 		{ { "SPI", BUS_SPI },
 		  { "LPC", BUS_LPC | BUS_FWH } };
+	static const struct boot_straps boot_straps_apl[] =
+		{ { "SPI", BUS_SPI },
+		  { "reserved", BUS_NONE } };
 	static const struct boot_straps boot_straps_unknown[] =
-		{ { "unknown" },
-		  { "unknown" },
-		  { "unknown" },
-		  { "unknown" } };
+		{ { "unknown", BUS_NONE },
+		  { "unknown", BUS_NONE },
+		  { "unknown", BUS_NONE },
+		  { "unknown", BUS_NONE } };
 
 	const struct boot_straps *boot_straps;
 	switch (ich_generation) {
@@ -688,7 +693,11 @@ static enum chipbustype enable_flash_ich_report_gcs(
 	case CHIPSET_9_SERIES_WILDCAT_POINT_LP:
 	case CHIPSET_100_SERIES_SUNRISE_POINT:
 	case CHIPSET_C620_SERIES_LEWISBURG:
+	case CHIPSET_300_SERIES_CANNON_POINT:
 		boot_straps = boot_straps_pch8_lp;
+		break;
+	case CHIPSET_APOLLO_LAKE:
+		boot_straps = boot_straps_apl;
 		break;
 	case CHIPSET_8_SERIES_WELLSBURG: // FIXME: check datasheet
 	case CHIPSET_CENTERTON: // FIXME: Datasheet does not mention GCS at all
@@ -712,6 +721,8 @@ static enum chipbustype enable_flash_ich_report_gcs(
 		break;
 	case CHIPSET_100_SERIES_SUNRISE_POINT:
 	case CHIPSET_C620_SERIES_LEWISBURG:
+	case CHIPSET_300_SERIES_CANNON_POINT:
+	case CHIPSET_APOLLO_LAKE:
 		bbs = (gcs >> 6) & 0x1;
 		break;
 	default:
@@ -866,7 +877,9 @@ static int enable_flash_pch100_shutdown(void *const pci_acc)
 	return 0;
 }
 
-static int enable_flash_pch100_or_c620(struct pci_dev *const dev, const char *const name, const enum ich_chipset pch_generation)
+static int enable_flash_pch100_or_c620(
+		struct pci_dev *const dev, const char *const name,
+		const int slot, const int func, const enum ich_chipset pch_generation)
 {
 	int ret = ERROR_FATAL;
 
@@ -887,7 +900,7 @@ static int enable_flash_pch100_or_c620(struct pci_dev *const dev, const char *co
 	pci_init(pci_acc);
 	register_shutdown(enable_flash_pch100_shutdown, pci_acc);
 
-	struct pci_dev *const spi_dev = pci_get_dev(pci_acc, dev->domain, dev->bus, 0x1f, 5);
+	struct pci_dev *const spi_dev = pci_get_dev(pci_acc, dev->domain, dev->bus, slot, func);
 	if (!spi_dev) {
 		msg_perr("Can't allocate PCI device.\n");
 		return ret;
@@ -929,12 +942,22 @@ _freepci_ret:
 
 static int enable_flash_pch100(struct pci_dev *const dev, const char *const name)
 {
-	return enable_flash_pch100_or_c620(dev, name, CHIPSET_100_SERIES_SUNRISE_POINT);
+	return enable_flash_pch100_or_c620(dev, name, 0x1f, 5, CHIPSET_100_SERIES_SUNRISE_POINT);
 }
 
 static int enable_flash_c620(struct pci_dev *const dev, const char *const name)
 {
-	return enable_flash_pch100_or_c620(dev, name, CHIPSET_C620_SERIES_LEWISBURG);
+	return enable_flash_pch100_or_c620(dev, name, 0x1f, 5, CHIPSET_C620_SERIES_LEWISBURG);
+}
+
+static int enable_flash_pch300(struct pci_dev *const dev, const char *const name)
+{
+	return enable_flash_pch100_or_c620(dev, name, 0x1f, 5, CHIPSET_300_SERIES_CANNON_POINT);
+}
+
+static int enable_flash_apl(struct pci_dev *const dev, const char *const name)
+{
+	return enable_flash_pch100_or_c620(dev, name, 0x0d, 2, CHIPSET_APOLLO_LAKE);
 }
 
 /* Silvermont architecture: Bay Trail(-T/-I), Avoton/Rangeley.
@@ -1801,7 +1824,7 @@ const struct penable chipset_enables[] = {
 	{0x8086, 0x1e44, B_FS,   DEP, "Intel", "Z77",				enable_flash_pch7},
 	{0x8086, 0x1e46, B_FS,   NT,  "Intel", "Z75",				enable_flash_pch7},
 	{0x8086, 0x1e47, B_FS,   NT,  "Intel", "Q77",				enable_flash_pch7},
-	{0x8086, 0x1e48, B_FS,   NT,  "Intel", "Q75",				enable_flash_pch7},
+	{0x8086, 0x1e48, B_FS,   DEP, "Intel", "Q75",				enable_flash_pch7},
 	{0x8086, 0x1e49, B_FS,   DEP, "Intel", "B75",				enable_flash_pch7},
 	{0x8086, 0x1e4a, B_FS,   DEP, "Intel", "H77",				enable_flash_pch7},
 	{0x8086, 0x1e53, B_FS,   NT,  "Intel", "C216",				enable_flash_pch7},
@@ -1809,8 +1832,8 @@ const struct penable chipset_enables[] = {
 	{0x8086, 0x1e56, B_FS,   DEP, "Intel", "QS77",				enable_flash_pch7},
 	{0x8086, 0x1e57, B_FS,   DEP, "Intel", "HM77",				enable_flash_pch7},
 	{0x8086, 0x1e58, B_FS,   NT,  "Intel", "UM77",				enable_flash_pch7},
-	{0x8086, 0x1e59, B_FS,   NT,  "Intel", "HM76",				enable_flash_pch7},
-	{0x8086, 0x1e5d, B_FS,   NT,  "Intel", "HM75",				enable_flash_pch7},
+	{0x8086, 0x1e59, B_FS,   DEP, "Intel", "HM76",				enable_flash_pch7},
+	{0x8086, 0x1e5d, B_FS,   DEP, "Intel", "HM75",				enable_flash_pch7},
 	{0x8086, 0x1e5e, B_FS,   NT,  "Intel", "HM70",				enable_flash_pch7},
 	{0x8086, 0x1e5f, B_FS,   DEP, "Intel", "NM70",				enable_flash_pch7},
 	{0x8086, 0x1f38, B_FS,   DEP, "Intel", "Avoton/Rangeley",		enable_flash_silvermont},
@@ -1965,14 +1988,15 @@ const struct penable chipset_enables[] = {
 	{0x8086, 0x9d41, B_S,    NT,  "Intel", "Skylake / Kaby Lake Sample",	enable_flash_pch100},
 	{0x8086, 0x9d43, B_S,    NT,  "Intel", "Skylake U Base",		enable_flash_pch100},
 	{0x8086, 0x9d46, B_S,    NT,  "Intel", "Skylake Y Premium",		enable_flash_pch100},
-	{0x8086, 0x9d48, B_S,    NT,  "Intel", "Skylake U Premium",		enable_flash_pch100},
+	{0x8086, 0x9d48, B_S,    DEP, "Intel", "Skylake U Premium",		enable_flash_pch100},
 	{0x8086, 0x9d4b, B_S,    NT,  "Intel", "Kaby Lake Y w/ iHDCP2.2 Prem.",	enable_flash_pch100},
-	{0x8086, 0x9d4e, B_S,    NT,  "Intel", "Kaby Lake U w/ iHDCP2.2 Prem.",	enable_flash_pch100},
+	{0x8086, 0x9d4e, B_S,    DEP, "Intel", "Kaby Lake U w/ iHDCP2.2 Prem.",	enable_flash_pch100},
 	{0x8086, 0x9d50, B_S,    NT,  "Intel", "Kaby Lake U w/ iHDCP2.2 Base",	enable_flash_pch100},
 	{0x8086, 0x9d51, B_S,    NT,  "Intel", "Kabe Lake w/ iHDCP2.2 Sample",	enable_flash_pch100},
 	{0x8086, 0x9d53, B_S,    NT,  "Intel", "Kaby Lake U Base",		enable_flash_pch100},
 	{0x8086, 0x9d56, B_S,    NT,  "Intel", "Kaby Lake Y Premium",		enable_flash_pch100},
 	{0x8086, 0x9d58, B_S,    NT,  "Intel", "Kaby Lake U Premium",		enable_flash_pch100},
+	{0x8086, 0x9d84, B_S,    DEP, "Intel", "Cannon Lake U Premium",		enable_flash_pch300},
 	{0x8086, 0xa141, B_S,    NT,  "Intel", "Sunrise Point Desktop Sample",	enable_flash_pch100},
 	{0x8086, 0xa142, B_S,    NT,  "Intel", "Sunrise Point Unknown Sample",	enable_flash_pch100},
 	{0x8086, 0xa143, B_S,    NT,  "Intel", "H110",				enable_flash_pch100},
@@ -1986,7 +2010,7 @@ const struct penable chipset_enables[] = {
 	{0x8086, 0xa14b, B_S,    NT,  "Intel", "Sunrise Point Server Sample",	enable_flash_pch100},
 	{0x8086, 0xa14d, B_S,    NT,  "Intel", "QM170",				enable_flash_pch100},
 	{0x8086, 0xa14e, B_S,    NT,  "Intel", "HM170",				enable_flash_pch100},
-	{0x8086, 0xa150, B_S,    NT,  "Intel", "CM236",				enable_flash_pch100},
+	{0x8086, 0xa150, B_S,    DEP, "Intel", "CM236",				enable_flash_pch100},
 	{0x8086, 0xa151, B_S,    NT,  "Intel", "QMS180",			enable_flash_pch100},
 	{0x8086, 0xa152, B_S,    NT,  "Intel", "HM175",				enable_flash_pch100},
 	{0x8086, 0xa153, B_S,    NT,  "Intel", "QM175",				enable_flash_pch100},
@@ -2012,6 +2036,18 @@ const struct penable chipset_enables[] = {
 	{0x8086, 0xa2c8, B_S,    NT,  "Intel", "B250",				enable_flash_pch100},
 	{0x8086, 0xa2c9, B_S,    NT,  "Intel", "Z370",				enable_flash_pch100},
 	{0x8086, 0xa2d2, B_S,    NT,  "Intel", "X299",				enable_flash_pch100},
+	{0x8086, 0x5ae8, B_S,    DEP, "Intel", "Apollo Lake",			enable_flash_apl},
+	{0x8086, 0xa303, B_S,    NT,  "Intel", "H310",				enable_flash_pch300},
+	{0x8086, 0xa304, B_S,    NT,  "Intel", "H370",				enable_flash_pch300},
+	{0x8086, 0xa305, B_S,    NT,  "Intel", "Z390",				enable_flash_pch300},
+	{0x8086, 0xa306, B_S,    NT,  "Intel", "Q370",				enable_flash_pch300},
+	{0x8086, 0xa308, B_S,    NT,  "Intel", "B360",				enable_flash_pch300},
+	{0x8086, 0xa309, B_S,    NT,  "Intel", "C246",				enable_flash_pch300},
+	{0x8086, 0xa30a, B_S,    NT,  "Intel", "C242",				enable_flash_pch300},
+	{0x8086, 0xa30c, B_S,    NT,  "Intel", "QM370",				enable_flash_pch300},
+	{0x8086, 0xa30d, B_S,    NT,  "Intel", "HM370",				enable_flash_pch300},
+	{0x8086, 0xa30e, B_S,    DEP, "Intel", "CM246",				enable_flash_pch300},
+	{0x8086, 0x3482, B_S,    DEP, "Intel", "Ice Lake U Premium",		enable_flash_pch300},
 #endif
 	{0},
 };

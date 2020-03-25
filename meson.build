@@ -1,6 +1,6 @@
 project('flashromutils', 'c',
-  version : '1.0',
-  license : 'GPL-2.0+',
+  version : run_command('util/getversion.sh', '-v').stdout().strip(),
+  license : 'GPL-2.0',
   meson_version : '>=0.47.0',
   default_options : ['warning_level=2', 'c_std=c99'],
 )
@@ -11,13 +11,12 @@ lt_revision = '0'
 lt_age = '0'
 lt_version = '@0@.@1@.@2@'.format(lt_current, lt_age, lt_revision)
 
-# hide some warnings
+# hide/enable some warnings
 warning_flags = [
+  '-Wwrite-strings',
   '-Wno-unused-parameter',
-  '-Wno-sign-compare',
   '-Wno-address-of-packed-member',
   '-Wno-enum-conversion',
-  '-Wno-missing-field-initializers',
   '-Wno-missing-braces',
 ]
 
@@ -43,6 +42,7 @@ config_drkaiser = get_option('config_drkaiser')
 config_dummy = get_option('config_dummy')
 config_ft2232_spi = get_option('config_ft2232_spi')
 config_gfxnvidia = get_option('config_gfxnvidia')
+config_raiden = get_option('config_raiden')
 config_internal = get_option('config_internal')
 config_it8212 = get_option('config_it8212')
 config_linux_mtd = get_option('config_linux_mtd')
@@ -62,12 +62,12 @@ config_satamv = get_option('config_satamv')
 config_satasii = get_option('config_satasii')
 config_serprog = get_option('config_serprog')
 config_usbblaster_spi = get_option('config_usbblaster_spi')
+config_stlinkv3_spi = get_option('config_stlinkv3_spi')
 
 cargs = []
 deps = []
 srcs = []
 
-need_libusb0 = false
 need_raw_access = false
 need_serial = false
 
@@ -85,12 +85,14 @@ endif
 # some programmers require libusb
 if get_option('usb')
   srcs += 'usbdev.c'
+  srcs += 'usb_device.c'
   deps += dependency('libusb-1.0')
 else
   config_ch341a_spi = false
   config_dediprog = false
   config_digilent_spi = false
   config_developerbox_spi = false
+  config_pickit2_spi = false
 endif
 
 # some programmers require libpci
@@ -104,6 +106,7 @@ else
   config_atavia = false
   config_drkaiser = false
   config_gfxnvidia = false
+  config_raiden = false
   config_internal = false
   config_it8212 = false
   config_nic3com = false
@@ -169,6 +172,10 @@ endif
 if config_gfxnvidia
   srcs += 'gfxnvidia.c'
   cargs += '-DCONFIG_GFXNVIDIA=1'
+endif
+if config_raiden
+  srcs += 'raiden_debug_spi.c'
+  cargs += '-DCONFIG_RAIDEN=1'
 endif
 if config_internal
   srcs += 'board_enable.c'
@@ -242,7 +249,6 @@ endif
 if config_pickit2_spi
   srcs += 'pickit2_spi.c'
   cargs += '-DCONFIG_PICKIT2_SPI=1'
-  need_libusb0 = true
 endif
 if config_pony_spi
   srcs += 'pony_spi.c'
@@ -273,6 +279,10 @@ if config_usbblaster_spi
   srcs += 'usbblaster_spi.c'
   cargs += '-DCONFIG_USBBLASTER_SPI=1'
 endif
+if config_stlinkv3_spi
+  srcs += 'stlinkv3_spi.c'
+  cargs += '-DCONFIG_STLINKV3_SPI=1'
+endif
 
 # bitbanging SPI infrastructure
 if config_bitbang_spi
@@ -291,11 +301,6 @@ endif
 if need_serial
   srcs += 'custom_baud.c'
   srcs += 'serial.c'
-endif
-
-# raw deprecated and old USB library
-if need_libusb0
-  deps += dependency('libusb')
 endif
 
 prefix = get_option('prefix')
@@ -326,6 +331,7 @@ srcs += 'programmer.c'
 srcs += 'sfdp.c'
 srcs += 'spi25.c'
 srcs += 'spi25_statusreg.c'
+srcs += 'spi95.c'
 srcs += 'spi.c'
 srcs += 'sst28sf040.c'
 srcs += 'sst49lfxxxc.c'
@@ -355,13 +361,22 @@ flashrom = shared_library(
   link_depends : mapfile,
 )
 
+version = meson.project_version()
+#strip leading characters
+if version.startswith('v')
+  version = version.split('v')[1]
+endif
+if version.startswith('p')
+  version = version.split('p')[1]
+endif
+
 pkgg = import('pkgconfig')
 pkgg.generate(
   libraries : flashrom,
-  version : meson.project_version(),
-  name : 'libflashrom',
-  filebase : 'libflashrom',
-  description : 'libflashrom',
+  version : version,
+  name : 'flashrom',
+  filebase : 'flashrom',
+  description : 'library to interact with flashrom',
 )
 
 flashrom_dep = declare_dependency(
