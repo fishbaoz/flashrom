@@ -116,7 +116,7 @@ static int determine_generation(struct pci_dev *dev)
 				   rev);
 			amd_gen = CHIPSET_SB89XX;
 		}
-	} else if ((dev->device_id == 0x780e) || (dev->device_id == 0x790e)) {
+	} else if (dev->device_id == 0x780e) {
 		/* The PCI ID of the LPC bridge doesn't change between Hudson-2/3/4 and Yangtze (Kabini/Temash)
 		 * although they use different SPI interfaces. */
 		int rev = find_smbus_dev_rev(0x1022, 0x780B);

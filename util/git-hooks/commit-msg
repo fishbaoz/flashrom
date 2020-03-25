@@ -212,7 +212,7 @@ test_duplicate_signoffs_acks() {
 }
 
 main() {
-	test_signoff
+#	test_signoff
 	test_duplicate_signoffs_acks
 	add_ChangeId
 }
