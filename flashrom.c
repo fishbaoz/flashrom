@@ -1400,7 +1400,7 @@ out_free:
 	msg_cinfo("%s.\n", ret ? "FAILED" : "done");
 	return ret;
 }
-
+#if 0
 int write_file_to_flash(struct flashctx *flash, const char *filename)
 {
 	#if (CONFIG_ONE_TIME_PROGRAM == 1)
@@ -1452,6 +1452,7 @@ out_free:
 	msg_cinfo("%s.\n", ret ? "FAILED" : "done");
 	return ret;
 }
+#endif
 
 /* Even if an error is found, the function will keep going and check the rest. */
 static int selfcheck_eraseblocks(const struct flashchip *chip)

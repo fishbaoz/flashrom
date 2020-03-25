@@ -621,7 +621,7 @@ CONFIG_SERPROG ?= no
 CONFIG_RAYER_SPI ?= no
 
 # ChromiumOS servo DUT debug board hardware support
-CONFIG_RAIDEN ?= yes
+CONFIG_RAIDEN ?= no
 
 # PonyProg2000 SPI hardware support
 CONFIG_PONY_SPI ?= no
@@ -658,7 +658,7 @@ CONFIG_MSTARDDC_SPI ?= no
 CONFIG_PICKIT2_SPI ?= no
 
 # Always enable STLink V3
-CONFIG_STLINKV3_SPI ?= yes
+CONFIG_STLINKV3_SPI ?= no
 
 # Always enable dummy tracing for now.
 CONFIG_DUMMY ?= yes
