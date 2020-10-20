@@ -47,7 +47,7 @@ BUILD_DETAILS_FILE ?= build_details.txt
 # values are those specified in enum programmer in programmer.h (which depend on other CONFIG_* options
 # evaluated below, namely those that enable/disable the various programmers).
 # Compilation will fail for unspecified values.
-CONFIG_DEFAULT_PROGRAMMER ?= PROGRAMMER_INVALID
+CONFIG_DEFAULT_PROGRAMMER ?= PROGRAMMER_INTERNAL
 # The following adds a default parameter for the default programmer set above (only).
 CONFIG_DEFAULT_PROGRAMMER_ARGS ?= ''
 # Example: compiling with
@@ -71,6 +71,14 @@ endif
 ifeq ($(CONFIG_STATIC),yes)
 override PKG_CONFIG += --static
 override LDFLAGS += -static
+endif
+
+ifeq ($(CC), i586-pc-msdosdjgpp-gcc)
+CFLAGS += -I./libpci/include
+CFLAGS += -I./libgetopt
+
+LDFLAGS += -L./libpci/lib
+LDFLAGS += -L./libgetopt
 endif
 
 # Set LC_ALL=C to minimize influences of the locale.
@@ -675,56 +683,56 @@ $(shell ./util/getrevision.sh -c 2>/dev/null && ./util/git-hooks/install.sh)
 CONFIG_INTERNAL ?= yes
 
 # Always enable serprog for now.
-CONFIG_SERPROG ?= yes
+CONFIG_SERPROG ?= no
 
 # RayeR SPIPGM hardware support
-CONFIG_RAYER_SPI ?= yes
+CONFIG_RAYER_SPI ?= no
 
 # ChromiumOS servo DUT debug board hardware support
-CONFIG_RAIDEN ?= yes
+CONFIG_RAIDEN ?= no
 
 # PonyProg2000 SPI hardware support
-CONFIG_PONY_SPI ?= yes
+CONFIG_PONY_SPI ?= no
 
 # Always enable 3Com NICs for now.
-CONFIG_NIC3COM ?= yes
+CONFIG_NIC3COM ?= no
 
 # Enable NVIDIA graphics cards. Note: write and erase do not work properly.
-CONFIG_GFXNVIDIA ?= yes
+CONFIG_GFXNVIDIA ?= no
 
 # Always enable SiI SATA controllers for now.
-CONFIG_SATASII ?= yes
+CONFIG_SATASII ?= no
 
 # Highpoint (HPT) ATA/RAID controller support.
 # IMPORTANT: This code is not yet working!
 CONFIG_ATAHPT ?= no
 
 # VIA VT6421A LPC memory support
-CONFIG_ATAVIA ?= yes
+CONFIG_ATAVIA ?= no
 
 # Promise ATA controller support.
 CONFIG_ATAPROMISE ?= no
 
 # ENE LPC interface keyboard controller
-CONFIG_ENE_LPC ?= yes
+CONFIG_ENE_LPC ?= no
 
 # Always enable FT2232 SPI dongles for now.
-CONFIG_FT2232_SPI ?= yes
+CONFIG_FT2232_SPI ?= no
 
 # Microchip MEC1308 Embedded Controller
-CONFIG_MEC1308 ?= yes
+CONFIG_MEC1308 ?= no
 
 # Always enable Altera USB-Blaster dongles for now.
-CONFIG_USBBLASTER_SPI ?= yes
+CONFIG_USBBLASTER_SPI ?= no
 
 # MSTAR DDC support needs more tests/reviews/cleanups.
 CONFIG_MSTARDDC_SPI ?= no
 
 # Always enable PICkit2 SPI dongles for now.
-CONFIG_PICKIT2_SPI ?= yes
+CONFIG_PICKIT2_SPI ?= no
 
 # Always enable STLink V3
-CONFIG_STLINKV3_SPI ?= yes
+CONFIG_STLINKV3_SPI ?= no
 
 # Disables LSPCON support until the i2c helper supports multiple systems.
 CONFIG_LSPCON_I2C_SPI ?= no
@@ -736,50 +744,50 @@ CONFIG_REALTEK_MST_I2C_SPI ?= no
 CONFIG_DUMMY ?= yes
 
 # Always enable Dr. Kaiser for now.
-CONFIG_DRKAISER ?= yes
+CONFIG_DRKAISER ?= no
 
 # Always enable Realtek NICs for now.
-CONFIG_NICREALTEK ?= yes
+CONFIG_NICREALTEK ?= no
 
 # Disable National Semiconductor NICs until support is complete and tested.
 CONFIG_NICNATSEMI ?= no
 
 # Always enable Intel NICs for now.
-CONFIG_NICINTEL ?= yes
+CONFIG_NICINTEL ?= no
 
 # Always enable SPI on Intel NICs for now.
-CONFIG_NICINTEL_SPI ?= yes
+CONFIG_NICINTEL_SPI ?= no
 
 # Always enable EEPROM on Intel NICs for now.
-CONFIG_NICINTEL_EEPROM ?= yes
+CONFIG_NICINTEL_EEPROM ?= no
 
 # Always enable SPI on OGP cards for now.
-CONFIG_OGP_SPI ?= yes
+CONFIG_OGP_SPI ?= no
 
 # Always enable Bus Pirate SPI for now.
-CONFIG_BUSPIRATE_SPI ?= yes
+CONFIG_BUSPIRATE_SPI ?= no
 
 # Always enable Dediprog SF100 for now.
-CONFIG_DEDIPROG ?= yes
+CONFIG_DEDIPROG ?= no
 
 # Always enable Developerbox emergency recovery for now.
-CONFIG_DEVELOPERBOX_SPI ?= yes
+CONFIG_DEVELOPERBOX_SPI ?= no
 
 # Always enable Marvell SATA controllers for now.
-CONFIG_SATAMV ?= yes
+CONFIG_SATAMV ?= no
 
 # Enable Linux spidev and MTD interfaces by default. We disable them on non-Linux targets.
 CONFIG_LINUX_MTD ?= yes
 CONFIG_LINUX_SPI ?= yes
 
 # Always enable ITE IT8212F PATA controllers for now.
-CONFIG_IT8212 ?= yes
+CONFIG_IT8212 ?= no
 
 # Winchiphead CH341A
-CONFIG_CH341A_SPI ?= yes
+CONFIG_CH341A_SPI ?= no
 
 # Digilent Development board JTAG
-CONFIG_DIGILENT_SPI ?= yes
+CONFIG_DIGILENT_SPI ?= no
 
 # Disable J-Link for now.
 CONFIG_JLINK_SPI ?= no

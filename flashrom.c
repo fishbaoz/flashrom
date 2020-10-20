@@ -1290,6 +1290,13 @@ notfound:
 		msg_cerr("Failed to probe chip: %s\n", strerror(errno));
 		return -1;
 	}
+	if (flash->chip->manufacture_id == 0xEF /* 0xC2 */) {
+		uint8_t uniq_id[8];
+		spi_rduniqid(flash, uniq_id);
+		msg_cinfo("%s: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", __func__,
+			  uniq_id[0], uniq_id[1], uniq_id[2], uniq_id[3],
+			  uniq_id[4], uniq_id[5], uniq_id[6], uniq_id[7]);
+	}
 
 	tmp = flashbuses_to_text(flash->chip->bustype);
 	msg_cinfo("%s %s flash chip \"%s\" (%d kB, %s) ", force ? "Assuming" : "Found",

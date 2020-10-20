@@ -1703,6 +1703,7 @@ const struct penable chipset_enables[] = {
 	{0x1022, 0x7468, B_PFL,  OK,  "AMD", "AMD-8111",			enable_flash_amd_768_8111},
 	{0x1022, 0x780e, B_FLS,  OK,  "AMD", "FCH",				enable_flash_sb600},
 	{0x1022, 0x790e, B_FLS,  OK,  "AMD", "FP4",				enable_flash_sb600},
+	{0x1d94, 0x790e, B_FLS,  OK,  "AMD", "HG",				enable_flash_sb600},
 	{0x1039, 0x0406, B_PFL,  NT,  "SiS", "501/5101/5501",			enable_flash_sis501},
 	{0x1039, 0x0496, B_PFL,  NT,  "SiS", "85C496+497",			enable_flash_sis85c496},
 	{0x1039, 0x0530, B_PFL,  OK,  "SiS", "530",				enable_flash_sis530},

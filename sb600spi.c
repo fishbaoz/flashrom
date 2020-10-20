@@ -128,7 +128,7 @@ static int determine_generation(struct pci_dev *dev)
 		} else if (rev == 0x16) {
 			amd_gen = CHIPSET_BOLTON;
 			msg_pdbg("Bolton detected.\n");
-		} else if ((rev >= 0x39 && rev <= 0x3A) || rev == 0x42) {
+		} else if ((rev >= 0x39 && rev <= 0x3A) || rev == 0x42 || rev == 0x61 || rev == 0x59 || rev == 0x4A) {
 			amd_gen = CHIPSET_YANGTZE;
 			msg_pdbg("Yangtze detected.\n");
 		} else {
@@ -140,7 +140,7 @@ static int determine_generation(struct pci_dev *dev)
 		int rev = find_smbus_dev_rev(0x1022, 0x790B);
 		if (rev < 0)
 			return -1;
-		if (rev == 0x4a) {
+		if (rev == 0x4a || rev == 0x61) {
 			amd_gen = CHIPSET_YANGTZE;
 			msg_pdbg("Yangtze detected.\n");
 		} else if (rev == 0x4b) {
@@ -567,7 +567,8 @@ static int handle_imc(struct pci_dev *dev)
 	if (amd_imc_force)
 		msg_pinfo("Continuing with write support because the user forced us to!\n");
 
-	return amd_imc_shutdown(dev);
+	return 0;
+	//return amd_imc_shutdown(dev);
 }
 
 int sb600_probe_spi(struct pci_dev *dev)
@@ -694,6 +695,8 @@ int sb600_probe_spi(struct pci_dev *dev)
 		smbus_dev = pci_dev_find(0x1022, 0x780b); /* AMD FCH */
 	if (!smbus_dev)
 		smbus_dev = pci_dev_find(0x1022, 0x790b); /* AMD FP4 */
+	if (!smbus_dev)
+		smbus_dev = pci_dev_find(0x1d94, 0x790b); /* AMD FP4 */
 	if (!smbus_dev) {
 		msg_perr("ERROR: SMBus device not found. Not enabling SPI.\n");
 		return ERROR_NONFATAL;

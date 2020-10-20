@@ -63,6 +63,20 @@ static int spi_rdid(struct flashctx *flash, unsigned char *readarr, int bytes)
 	return 0;
 }
 
+int spi_rduniqid(struct flashctx *flash, unsigned char *readarr)
+{
+	unsigned char cmd[JEDEC_RDUNIQID_OUTSIZE] = { JEDEC_RDUNIQID, 0, 0, 0, 0 };
+	int ret;
+
+	ret = spi_send_command(flash, sizeof(cmd), JEDEC_RDUNIQID_INSIZE, cmd,
+			       readarr);
+	if (ret)
+		return ret;
+	msg_cspew("Read Unique ID returned 0x%02x 0x%02x. ", readarr[0], readarr[1]);
+	return 0;
+}
+
+
 static int spi_rems(struct flashctx *flash, unsigned char *readarr)
 {
 	static const unsigned char cmd[JEDEC_REMS_OUTSIZE] = { JEDEC_REMS, };
